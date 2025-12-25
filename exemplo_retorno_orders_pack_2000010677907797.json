@@ -1,0 +1,341 @@
+{
+  "pack_id": "2000010677907797",
+  "order_id": 2000014406166818,
+  "status": "paid",
+  "date_created": "2025-12-20T13:03:54.000-04:00",
+  "buyer": {
+    "id": 65199679,
+    "nickname": "PABLODEOLIVEIRAFONSECA"
+  },
+  "payments": [
+    {
+      "reason": "Cinto Modular De Batalha Support Sistema Invictus Molle Cor Preto Tamanho M",
+      "status_code": null,
+      "total_paid_amount": 206,
+      "operation_type": "regular_payment",
+      "transaction_amount": 206,
+      "transaction_amount_refunded": 0,
+      "date_approved": "2025-12-20T13:03:55.000-04:00",
+      "collector": {
+        "id": 2425322234
+      },
+      "coupon_id": null,
+      "installments": 1,
+      "authorization_code": null,
+      "taxes_amount": 0,
+      "id": 138768843600,
+      "date_last_modified": "2025-12-20T13:03:55.000-04:00",
+      "coupon_amount": 0,
+      "available_actions": [
+        "refund"
+      ],
+      "shipping_cost": 0,
+      "installment_amount": null,
+      "date_created": "2025-12-20T13:03:55.000-04:00",
+      "activation_uri": null,
+      "overpaid_amount": 0,
+      "card_id": null,
+      "status_detail": "accredited",
+      "issuer_id": "2007",
+      "payment_method_id": "account_money",
+      "payment_type": "account_money",
+      "deferred_period": null,
+      "atm_transfer_reference": {
+        "transaction_id": null,
+        "company_id": null
+      },
+      "site_id": "MLB",
+      "payer_id": 65199679,
+      "order_id": 2000014406166818,
+      "currency_id": "BRL",
+      "status": "approved",
+      "transaction_order_id": null
+    }
+  ],
+  "shipping_details": {
+    "substatus_history": [
+      {
+        "date": "2025-12-20T13:03:55.246-04:00",
+        "substatus": "shipment_paid",
+        "status": "pending"
+      },
+      {
+        "date": "2025-12-23T03:05:35.000-04:00",
+        "substatus": "invoice_pending",
+        "status": "ready_to_ship"
+      },
+      {
+        "date": "2025-12-23T13:00:24.268-04:00",
+        "substatus": "waiting_for_carrier_authorization",
+        "status": "ready_to_ship"
+      },
+      {
+        "date": "2025-12-23T13:00:26.142-04:00",
+        "substatus": "ready_to_print",
+        "status": "ready_to_ship"
+      }
+    ],
+    "snapshot_packing": {
+      "snapshot_id": "37eeb097-c7c4-40ef-9f48-1a0d42b58288",
+      "pack_hash": "1"
+    },
+    "receiver_id": 65199679,
+    "base_cost": 44.9,
+    "status_history": {
+      "date_shipped": null,
+      "date_returned": null,
+      "date_delivered": null,
+      "date_first_visit": null,
+      "date_not_delivered": null,
+      "date_cancelled": null,
+      "date_handling": "2025-12-20T13:03:59.000-04:00",
+      "date_ready_to_ship": "2025-12-23T03:05:35.000-04:00"
+    },
+    "type": "forward",
+    "return_details": null,
+    "sender_id": 2425322234,
+    "mode": "me2",
+    "order_cost": 206,
+    "priority_class": {
+      "id": "20"
+    },
+    "service_id": 157861,
+    "shipping_items": [
+      {
+        "quantity": 1,
+        "dimensions_source": {
+          "origin": "bmp",
+          "id": "MLB4343427339__1"
+        },
+        "description": "Cinto Modular De Batalha Support Sistema Invictus Molle Cor Preto Tamanho M",
+        "id": "MLB4343427339",
+        "bundle": null,
+        "user_product_id": "MLBU3656859250",
+        "sender_id": 2425322234,
+        "dimensions": "8.0x13.0x26.0,528.0"
+      }
+    ],
+    "tracking_number": "MEL46131741948FMDOF01",
+    "cost_components": {
+      "loyal_discount": 0,
+      "special_discount": 0,
+      "compensation": 0,
+      "gap_discount": 1.15,
+      "ratio": 44.9
+    },
+    "id": 46131741948,
+    "tracking_method": "MEL Distribution",
+    "last_updated": "2025-12-23T23:51:18.077-04:00",
+    "items_types": [
+      "new"
+    ],
+    "comments": null,
+    "substatus": "ready_to_print",
+    "date_created": "2025-12-20T13:03:54.108-04:00",
+    "date_first_printed": null,
+    "created_by": "receiver",
+    "application_id": null,
+    "shipping_option": {
+      "processing_time": null,
+      "cost": 0,
+      "estimated_schedule_limit": {
+        "date": null
+      },
+      "shipping_method_id": 100009,
+      "estimated_delivery_final": {
+        "date": "2026-01-02T00:00:00.000-03:00"
+      },
+      "buffering": {
+        "date": "2025-12-23T00:00:00.000Z"
+      },
+      "desired_promised_delivery": {
+        "from": null
+      },
+      "pickup_promise": {
+        "from": null,
+        "to": null
+      },
+      "list_cost": 22.45,
+      "estimated_delivery_limit": {
+        "date": "2026-01-02T00:00:00.000-03:00"
+      },
+      "priority_class": {
+        "id": "20"
+      },
+      "delivery_promise": "estimated",
+      "delivery_type": "estimated",
+      "estimated_delivery_time": {
+        "date": "2026-01-02T00:00:00.000-03:00",
+        "pay_before": "2025-12-24T00:00:00.000-03:00",
+        "schedule": null,
+        "unit": "hour",
+        "offset": {
+          "date": "2026-01-03T00:00:00.000-03:00",
+          "shipping": 24
+        },
+        "shipping": 72,
+        "time_frame": {
+          "from": null,
+          "to": null
+        },
+        "handling": 72,
+        "type": "known_frame"
+      },
+      "name": "Normal",
+      "id": 1545649232,
+      "estimated_delivery_extended": {
+        "date": "2026-01-02T00:00:00.000-03:00"
+      },
+      "currency_id": "BRL"
+    },
+    "tags": [],
+    "sender_address": {
+      "country": {
+        "id": "BR",
+        "name": "Brasil"
+      },
+      "address_line": "XXXXXXX",
+      "types": [
+        "shipping"
+      ],
+      "scoring": 0,
+      "agency": null,
+      "city": {
+        "id": "TUxCQ0NBTTQ1ZTBl",
+        "name": "Camboriú"
+      },
+      "geolocation_type": "ROOFTOP",
+      "latitude": 0,
+      "municipality": {
+        "id": null,
+        "name": null
+      },
+      "version": "BR-981f869b1192240c070f21b2a16e491a",
+      "location_id": null,
+      "street_name": "XXXXXXX",
+      "zip_code": "XXXXXXX",
+      "geolocation_source": "corrections-api",
+      "node": null,
+      "intersection": null,
+      "street_number": "XXXXXXX",
+      "comment": "XXXXXXX",
+      "id": 1553280908,
+      "state": {
+        "id": "BR-SC",
+        "name": "Santa Catarina"
+      },
+      "neighborhood": {
+        "id": null,
+        "name": "Santa Regina"
+      },
+      "geolocation_last_updated": "2025-12-10T13:11:33.072Z",
+      "longitude": 0
+    },
+    "sibling": {
+      "reason": null,
+      "sibling_id": null,
+      "description": null,
+      "source": null,
+      "date_created": null,
+      "last_updated": null
+    },
+    "return_tracking_number": null,
+    "site_id": "MLB",
+    "carrier_info": null,
+    "market_place": "MELI",
+    "receiver_address": {
+      "country": {
+        "id": "BR",
+        "name": "Brasil"
+      },
+      "city": {
+        "id": "TUxCQ0JFTGU0ODdm",
+        "name": "Belo Horizonte"
+      },
+      "geolocation_type": "ROOFTOP",
+      "latitude": -19.990147,
+      "municipality": {
+        "id": null,
+        "name": null
+      },
+      "location_id": 7879680,
+      "street_name": "Rua Orlando Nogueira",
+      "zip_code": "30662500",
+      "intersection": null,
+      "receiver_name": "Pablo Oliveira",
+      "id": 198182359,
+      "state": {
+        "id": "BR-MG",
+        "name": "Minas Gerais"
+      },
+      "longitude": -44.047577,
+      "address_line": "Rua Orlando Nogueira 93",
+      "types": [],
+      "scoring": 1,
+      "agency": null,
+      "version": "BR-b4fa9a0d9107119f27a718f57a9d7c39",
+      "geolocation_source": "geolocation-visits",
+      "delivery_preference": "residential",
+      "node": null,
+      "street_number": "93",
+      "comment": "Referencia: PODE SER ENTREGUE TAMBÉM NO NÚMERO 97. VIZINHO SE CHAMA VICENTE",
+      "neighborhood": {
+        "id": null,
+        "name": "Itaipu (Barreiro)"
+      },
+      "geolocation_last_updated": "2024-07-18T13:44:50.411Z",
+      "receiver_phone": "XXXXXXX"
+    },
+    "customer_id": null,
+    "order_id": 2000014406166818,
+    "quotation": null,
+    "status": "ready_to_ship",
+    "logistic_type": "xd_drop_off"
+  },
+  "order_items": [
+    {
+      "item": {
+        "id": "MLB4343427339",
+        "title": "Cinto Modular De Batalha Support Sistema Invictus Molle Cor Preto Tamanho M",
+        "category_id": "MLB271874",
+        "variation_id": null,
+        "seller_custom_field": null,
+        "global_price": null,
+        "net_weight": null,
+        "variation_attributes": [
+          {
+            "name": "Cor",
+            "id": "COLOR",
+            "value_id": "52049",
+            "value_name": "Preto"
+          },
+          {
+            "name": "Tamanho",
+            "id": "SIZE",
+            "value_id": "2282666",
+            "value_name": "M"
+          }
+        ],
+        "warranty": "Garantia de fábrica: 90 dias",
+        "condition": "new",
+        "seller_sku": "BATALHA_PT_ML"
+      },
+      "quantity": 1,
+      "unit_price": 206,
+      "full_unit_price": 206,
+      "currency_id": "BRL",
+      "manufacturing_days": null,
+      "picked_quantity": null,
+      "requested_quantity": {
+        "measure": "unit",
+        "value": 1
+      },
+      "sale_fee": 23.69,
+      "listing_type_id": "gold_special",
+      "base_exchange_rate": null,
+      "base_currency_id": null,
+      "bundle": null,
+      "element_id": 1
+    }
+  ]
+}
