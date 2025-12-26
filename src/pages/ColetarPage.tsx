@@ -23,6 +23,15 @@ export default function ColetarPage() {
   const [searchId, setSearchId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [debugInfo, setDebugInfo] = useState<{
+    total: number
+    included: number
+    unpaid: number
+    shipped: number
+    labelPrinted: number
+    assigned: number
+    invalidCutoff: number
+  } | null>(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -31,17 +40,34 @@ export default function ColetarPage() {
       return
     }
 
+    const parseCutoffDate = (value?: string) => {
+      if (!value) return null
+      const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+      if (dateOnlyMatch) {
+        const [, year, month, day] = dateOnlyMatch
+        return new Date(Number(year), Number(month) - 1, Number(day))
+      }
+      return formatDateTime(value)
+    }
+
+    const getDateKeyFromValue = (value?: string) => {
+      if (!value) return null
+      const match = value.match(/(\d{4})-(\d{2})-(\d{2})/)
+      if (!match) return null
+      const [, year, month, day] = match
+      return Number(year) * 10000 + Number(month) * 100 + Number(day)
+    }
+
     const controller = new AbortController()
 
     const load = async () => {
       setLoading(true)
       setError(null)
       try {
+        const debugEnabled =
+          typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === '1'
         const now = new Date()
-        const startOfToday = new Date(now)
-        startOfToday.setHours(0, 0, 0, 0)
-        const endOfToday = new Date(now)
-        endOfToday.setHours(23, 59, 59, 999)
+        const todayKey = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate()
 
         const [ordersResponse, listsResponse] = await Promise.all([
           fetch(`${supabaseUrl}/functions/v1/ml-orders?account_id=${mlAccountId}&details=1`, {
@@ -70,11 +96,44 @@ export default function ColetarPage() {
         }
 
         const orders = Array.isArray(ordersData?.results) ? ordersData.results : []
+        if (debugEnabled) {
+          const debugCounts = {
+            total: orders.length,
+            included: 0,
+            unpaid: 0,
+            shipped: 0,
+            labelPrinted: 0,
+            assigned: 0,
+            invalidCutoff: 0,
+          }
+          for (const order of orders) {
+            const reasons: string[] = []
+            if (!isPaidAndAuthorized(order)) reasons.push('unpaid')
+            if (isShipped(order)) reasons.push('shipped')
+            if (isLabelPrinted(order)) reasons.push('labelPrinted')
+            if (assignedOrders.has(String(order.pack_id ?? order.id ?? ''))) reasons.push('assigned')
+            const cutoffRaw = order?.shipping_sla?.expected_date
+            if (!parseCutoffDate(cutoffRaw)) reasons.push('invalidCutoff')
+            if (reasons.length === 0) {
+              debugCounts.included += 1
+            } else {
+              for (const reason of reasons) {
+                if (reason === 'unpaid') debugCounts.unpaid += 1
+                if (reason === 'shipped') debugCounts.shipped += 1
+                if (reason === 'labelPrinted') debugCounts.labelPrinted += 1
+                if (reason === 'assigned') debugCounts.assigned += 1
+                if (reason === 'invalidCutoff') debugCounts.invalidCutoff += 1
+              }
+            }
+          }
+          setDebugInfo(debugCounts)
+        } else {
+          setDebugInfo(null)
+        }
 
         const usable = orders
           .filter(isPaidAndAuthorized)
           .filter((order: any) => !isShipped(order))
-          .filter((order: any) => !isLabelPrinted(order))
           .filter((order: any) => !assignedOrders.has(String(order.pack_id ?? order.id ?? '')))
 
         const grouped = new Map<
@@ -84,13 +143,23 @@ export default function ColetarPage() {
 
         for (const order of usable) {
           const cutoffRaw = order?.shipping_sla?.expected_date
-          const cutoffDate = formatDateTime(cutoffRaw)
+          const cutoffDate = parseCutoffDate(cutoffRaw)
           if (!cutoffDate) {
             continue
           }
+          const cutoffKey = getDateKeyFromValue(cutoffRaw)
+          if (cutoffKey) {
+            const year = Math.floor(cutoffKey / 10000)
+            const month = Math.floor((cutoffKey % 10000) / 100)
+            const day = cutoffKey % 100
+            cutoffDate.setFullYear(year, month - 1, day)
+          }
           cutoffDate.setHours(11, 30, 0, 0)
-          const isToday = cutoffDate >= startOfToday && cutoffDate <= endOfToday
-          const isFuture = cutoffDate > endOfToday
+          const normalizedCutoffKey =
+            cutoffKey ??
+            cutoffDate.getFullYear() * 10000 + (cutoffDate.getMonth() + 1) * 100 + cutoffDate.getDate()
+          const isToday = normalizedCutoffKey === todayKey
+          const isFuture = normalizedCutoffKey > todayKey
           const cutoffAt = cutoffDate.toISOString()
           const display = formatCutoffDisplay(cutoffAt)
           const key = cutoffAt
@@ -141,7 +210,7 @@ export default function ColetarPage() {
   )
 
   const handleActivate = async () => {
-    if (!activeGroup || activeGroup.isFuture || !supabaseUrl) return
+    if (!activeGroup || !supabaseUrl) return
 
     const items = activeGroup.orders.flatMap((order: any) => {
       const orderItems = Array.isArray(order.order_items) ? order.order_items : []
@@ -208,6 +277,18 @@ export default function ColetarPage() {
         </form>
         {loading ? <div className="mt-3 text-sm text-[var(--ink-muted)]">Carregando...</div> : null}
         {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
+        {debugInfo ? (
+          <div className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <p className="font-semibold">Debug filtros (use ?debug=1)</p>
+            <p>Total: {debugInfo.total}</p>
+            <p>Incluídos: {debugInfo.included}</p>
+            <p>Não pagos/autorizados: {debugInfo.unpaid}</p>
+            <p>Enviados: {debugInfo.shipped}</p>
+            <p>Etiqueta impressa: {debugInfo.labelPrinted}</p>
+            <p>Já em lista: {debugInfo.assigned}</p>
+            <p>Data de corte inválida: {debugInfo.invalidCutoff}</p>
+          </div>
+        ) : null}
       </section>
 
       <section className="px-4 pt-4 pb-10 sm:px-8">
@@ -297,12 +378,11 @@ export default function ColetarPage() {
             {groups.map((group) => (
               <button
                 key={group.key}
-                disabled={group.isFuture}
                 className={`rounded border px-4 py-3 text-left text-sm transition ${
                   selectedGroup === group.key
                     ? 'border-blue-700 bg-white shadow-sm'
                     : 'border-black/10 bg-white'
-                } ${group.isFuture ? 'cursor-not-allowed opacity-50' : 'hover:bg-black/5'}`}
+                } hover:bg-black/5`}
                 onClick={() => setSelectedGroup(group.key)}
               >
                 <div className="flex items-center justify-between gap-3">
@@ -310,6 +390,10 @@ export default function ColetarPage() {
                   {group.isToday ? (
                     <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
                       PARA HOJE
+                    </span>
+                  ) : group.isFuture ? (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                      FUTURO
                     </span>
                   ) : null}
                 </div>
@@ -360,9 +444,7 @@ export default function ColetarPage() {
               </div>
               <button
                 className={`rounded px-4 py-2 text-sm ${
-                  selectedCount && activeGroup && !activeGroup.isFuture
-                    ? 'bg-blue-700 text-white'
-                    : 'bg-gray-200 text-gray-500'
+                  selectedCount ? 'bg-blue-700 text-white' : 'bg-gray-200 text-gray-500'
                 }`}
                 onClick={handleActivate}
               >
@@ -381,9 +463,7 @@ export default function ColetarPage() {
                 <div className="flex items-center justify-end">
                   <button
                     className={`rounded px-4 py-2 ${
-                      selectedCount && !activeGroup.isFuture
-                        ? 'bg-blue-700 text-white'
-                        : 'bg-gray-200 text-gray-500'
+                      selectedCount ? 'bg-blue-700 text-white' : 'bg-gray-200 text-gray-500'
                     }`}
                     onClick={handleActivate}
                   >

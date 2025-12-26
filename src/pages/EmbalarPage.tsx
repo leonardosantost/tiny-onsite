@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import LoadingOverlay from '../components/LoadingOverlay'
 import { mlAccountId, supabaseUrl } from '../config'
+import { formatCutoffDisplay } from '../utils/date'
 
 export default function EmbalarPage() {
   const [pickListId, setPickListId] = useState('')
@@ -19,6 +20,8 @@ export default function EmbalarPage() {
   const [labelError, setLabelError] = useState(false)
   const [thumbByItemId, setThumbByItemId] = useState<Record<string, string>>({})
   const [gtinByItemId, setGtinByItemId] = useState<Record<string, string>>({})
+  const [canPackToday, setCanPackToday] = useState(true)
+  const [cutoffLabel, setCutoffLabel] = useState<string | null>(null)
   const skuInputRef = useRef<HTMLInputElement | null>(null)
   const listInputRef = useRef<HTMLInputElement | null>(null)
   const labelInputRef = useRef<HTMLInputElement | null>(null)
@@ -28,6 +31,14 @@ export default function EmbalarPage() {
   const packedCount = packedItems.length
   const totalCount = items.length
   const progressPercent = totalCount ? Math.round((packedCount / totalCount) * 100) : 0
+
+  const getDateKeyFromValue = (value?: string) => {
+    if (!value) return null
+    const match = value.match(/(\d{4})-(\d{2})-(\d{2})/)
+    if (!match) return null
+    const [, year, month, day] = match
+    return Number(year) * 10000 + Number(month) * 100 + Number(day)
+  }
 
   useEffect(() => {
     if (pickListReady) {
@@ -56,6 +67,8 @@ export default function EmbalarPage() {
     setPrintMessage('')
     setThumbByItemId({})
     setGtinByItemId({})
+    setCanPackToday(true)
+    setCutoffLabel(null)
     try {
       const response = await fetch(`${supabaseUrl}/functions/v1/ml-picklists?id=${trimmed}`)
       if (!response.ok) {
@@ -63,6 +76,17 @@ export default function EmbalarPage() {
       }
       const data = await response.json()
       setList(data)
+      const cutoffRaw = data?.cutoff_at
+      if (cutoffRaw) {
+        const now = new Date()
+        const todayKey = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate()
+        const cutoffKey = getDateKeyFromValue(cutoffRaw)
+        setCanPackToday(!cutoffKey || cutoffKey === todayKey)
+        setCutoffLabel(formatCutoffDisplay(cutoffRaw).label)
+      } else {
+        setCanPackToday(true)
+        setCutoffLabel(null)
+      }
       if (Array.isArray(data?.pick_list_items)) {
         const packed = data.pick_list_items
           .map((item: any, index: number) => (item?.packed_at ? index : null))
@@ -144,9 +168,17 @@ export default function EmbalarPage() {
     setThumbByItemId({})
     setGtinByItemId({})
     setError(null)
+    setCanPackToday(true)
+    setCutoffLabel(null)
   }
 
   const processProductCode = (code: string) => {
+    if (!canPackToday) {
+      setError(
+        `Embalar somente no dia da coleta${cutoffLabel ? ` (corte: ${cutoffLabel})` : ''}.`,
+      )
+      return
+    }
     const normalized = code.trim()
     if (!normalized) return
     const index = items.findIndex((item: any, idx: number) => {
@@ -187,6 +219,12 @@ export default function EmbalarPage() {
 
   const handleLabelSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (!canPackToday) {
+      setError(
+        `Embalar somente no dia da coleta${cutoffLabel ? ` (corte: ${cutoffLabel})` : ''}.`,
+      )
+      return
+    }
     if (!labelCode.trim()) return
     if (currentProduct?.shipment_id) {
       const expected = String(currentProduct.shipment_id)
@@ -296,6 +334,11 @@ export default function EmbalarPage() {
                   Cancelar o empacotamento
                 </button>
               </div>
+              {!canPackToday ? (
+                <div className="mt-4 rounded border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+                  Esta lista é para {cutoffLabel ?? 'data futura'}. Deixe os itens separados e embale somente no dia da coleta.
+                </div>
+              ) : null}
 
               <form onSubmit={handleProductSubmit} className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <input
@@ -309,6 +352,7 @@ export default function EmbalarPage() {
                       processProductCode(event.currentTarget.value)
                     }
                   }}
+                  disabled={!canPackToday}
                   ref={skuInputRef}
                 />
               </form>
@@ -394,6 +438,7 @@ export default function EmbalarPage() {
                       placeholder="Escanear ou inserir etiqueta de endereço"
                       value={labelCode}
                       onChange={(event) => setLabelCode(event.target.value)}
+                      disabled={!canPackToday}
                       ref={labelInputRef}
                     />
                     {labelError ? (

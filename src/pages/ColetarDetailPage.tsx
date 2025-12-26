@@ -99,6 +99,18 @@ export default function ColetarDetailPage() {
   const skuCount = new Set(items.map((item: any) => item.sku || item.item_id)).size
   const unitsCount = items.reduce((acc: number, item: any) => acc + (item.quantity ?? 0), 0)
   const cutoffLabel = list?.cutoff_at ? formatCutoffDisplay(list.cutoff_at).label : '-'
+  const dispatchLabel = (() => {
+    if (!list?.cutoff_at) return null
+    const date = new Date(list.cutoff_at)
+    if (Number.isNaN(date.getTime())) return null
+    const weekdays = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab']
+    const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = months[date.getMonth()]
+    const year = date.getFullYear()
+    const weekday = weekdays[date.getDay()]
+    return `${weekday} ${day} ${month}/${year}`
+  })()
   const packedCount = items.filter((item: any) => item?.packed_at).length
   const packedAtDates = items
     .map((item: any) => item?.packed_at)
@@ -142,8 +154,10 @@ export default function ColetarDetailPage() {
             h1 { font-size: 22px; margin: 0 0 8px; }
             .muted { color: #333; font-size: 12px; }
             .warning { margin: 16px 0; padding: 8px 12px; border: 2px solid #000; font-weight: bold; text-align: center; }
+            .dispatch { margin-top: 8px; font-size: 16px; font-weight: bold; }
             .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
-            .barcode { border: 1px solid #000; padding: 8px; }
+            .barcode { border: 1px solid #000; padding: 8px; text-align: center; }
+            .barcode-id { margin-top: 6px; font-size: 12px; font-weight: bold; }
             table { width: 100%; border-collapse: collapse; margin-top: 16px; }
             th, td { border-bottom: 1px solid #000; text-align: left; padding: 8px 6px; vertical-align: top; }
             th { font-size: 12px; text-transform: uppercase; }
@@ -156,11 +170,16 @@ export default function ColetarDetailPage() {
           <div class="header">
             <div>
               <h1>Lista de coleta</h1>
-              <div class="muted">ID da lista: ${id}</div>
-              <div class="muted">Corte: ${cutoffLabel}</div>
+              <div class="dispatch">Despachar: ${dispatchLabel ?? cutoffLabel}</div>
+              <div class="muted">ID: ${id}</div>
+              
+              
               <div class="muted">Pedidos: ${ordersCount} | SKUs: ${skuCount} | Unidades: ${unitsCount}</div>
             </div>
-            <div class="barcode">${barcodeSvg}</div>
+            <div class="barcode">
+              ${barcodeSvg}
+              <div class="barcode-id">${id}</div>
+            </div>
           </div>
           <div class="warning">NÃO ANEXAR ESSA FOLHA AOS PEDIDOS</div>
           <table>
@@ -196,8 +215,9 @@ export default function ColetarDetailPage() {
             </p>
             <h1 className="mt-2 text-3xl font-semibold">ID da lista de coleta: {id}</h1>
           </div>
-          <div className="flex flex-col items-end gap-3">
+          <div className="flex flex-col items-center gap-2">
             {id ? <Barcode value={id} /> : null}
+            {id ? <div className="text-sm font-semibold">{id}</div> : null}
             <button
               className="rounded border border-blue-700 px-4 py-2 text-sm text-blue-700"
               onClick={handlePrint}
