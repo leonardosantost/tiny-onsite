@@ -106,7 +106,9 @@ export default function ColetarDetailPage() {
     .map((value: string) => new Date(value))
     .filter((date: Date) => !Number.isNaN(date.getTime()))
   const packedFinishedAt =
-    packedAtDates.length > 0 ? new Date(Math.max(...packedAtDates.map((date) => date.getTime()))) : null
+    packedAtDates.length > 0
+      ? new Date(Math.max(...packedAtDates.map((date: Date) => date.getTime())))
+      : null
   const isPacked = items.length > 0 && packedCount === items.length
   const isManifested = list?.status === 'completed'
   const handlePrint = () => {
