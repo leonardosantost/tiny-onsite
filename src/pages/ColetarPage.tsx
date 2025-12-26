@@ -13,6 +13,8 @@ export default function ColetarPage() {
       cutoffAt: string
       label: string
       relative: string
+      isToday: boolean
+      isFuture: boolean
       orders: any[]
     }[]
   >([])
@@ -35,6 +37,12 @@ export default function ColetarPage() {
       setLoading(true)
       setError(null)
       try {
+        const now = new Date()
+        const startOfToday = new Date(now)
+        startOfToday.setHours(0, 0, 0, 0)
+        const endOfToday = new Date(now)
+        endOfToday.setHours(23, 59, 59, 999)
+
         const [ordersResponse, listsResponse] = await Promise.all([
           fetch(`${supabaseUrl}/functions/v1/ml-orders?account_id=${mlAccountId}&details=1`, {
             signal: controller.signal,
@@ -69,7 +77,10 @@ export default function ColetarPage() {
           .filter((order: any) => !isLabelPrinted(order))
           .filter((order: any) => !assignedOrders.has(String(order.pack_id ?? order.id ?? '')))
 
-        const grouped = new Map<string, { cutoffAt: string; label: string; relative: string; orders: any[] }>()
+        const grouped = new Map<
+          string,
+          { cutoffAt: string; label: string; relative: string; isToday: boolean; isFuture: boolean; orders: any[] }
+        >()
 
         for (const order of usable) {
           const cutoffRaw = order?.shipping_sla?.expected_date
@@ -78,6 +89,8 @@ export default function ColetarPage() {
             continue
           }
           cutoffDate.setHours(11, 30, 0, 0)
+          const isToday = cutoffDate >= startOfToday && cutoffDate <= endOfToday
+          const isFuture = cutoffDate > endOfToday
           const cutoffAt = cutoffDate.toISOString()
           const display = formatCutoffDisplay(cutoffAt)
           const key = cutoffAt
@@ -89,6 +102,8 @@ export default function ColetarPage() {
               cutoffAt,
               label: display.label,
               relative: display.relative,
+              isToday,
+              isFuture,
               orders: [order],
             })
           }
@@ -99,7 +114,8 @@ export default function ColetarPage() {
           .sort((a, b) => new Date(a.cutoffAt).getTime() - new Date(b.cutoffAt).getTime())
 
         setGroups(sortedGroups)
-        setSelectedGroup(sortedGroups[0]?.key ?? null)
+        const firstSelectable = sortedGroups.find((group) => !group.isFuture)
+        setSelectedGroup(firstSelectable?.key ?? null)
         setLists(Array.isArray(listsData) ? listsData : [])
       } catch (err) {
         if (!(err instanceof DOMException && err.name === 'AbortError')) {
@@ -125,7 +141,7 @@ export default function ColetarPage() {
   )
 
   const handleActivate = async () => {
-    if (!activeGroup || !supabaseUrl) return
+    if (!activeGroup || activeGroup.isFuture || !supabaseUrl) return
 
     const items = activeGroup.orders.flatMap((order: any) => {
       const orderItems = Array.isArray(order.order_items) ? order.order_items : []
@@ -281,14 +297,22 @@ export default function ColetarPage() {
             {groups.map((group) => (
               <button
                 key={group.key}
-                className={`rounded border px-4 py-3 text-left text-sm ${
+                disabled={group.isFuture}
+                className={`rounded border px-4 py-3 text-left text-sm transition ${
                   selectedGroup === group.key
                     ? 'border-blue-700 bg-white shadow-sm'
                     : 'border-black/10 bg-white'
-                }`}
+                } ${group.isFuture ? 'cursor-not-allowed opacity-50' : 'hover:bg-black/5'}`}
                 onClick={() => setSelectedGroup(group.key)}
               >
-                <p className="font-semibold">{group.label}</p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-semibold">{group.label}</p>
+                  {group.isToday ? (
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                      PARA HOJE
+                    </span>
+                  ) : null}
+                </div>
                 <p className="text-[var(--ink-muted)]">{group.orders.length} pedidos para coletar</p>
               </button>
             ))}
@@ -299,7 +323,14 @@ export default function ColetarPage() {
           <div className="mt-6 text-sm">
             {activeGroup ? (
               <>
-                <p>1 horário de retirada da transportadora para {activeGroup.label}</p>
+                <p className="flex flex-wrap items-center gap-2">
+                  1 horário de retirada da transportadora para {activeGroup.label}
+                  {activeGroup.isToday ? (
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                      PARA HOJE
+                    </span>
+                  ) : null}
+                </p>
                 <p className="mt-2 font-semibold">11:30 AM</p>
                 <p className="text-[var(--ink-muted)]">{activeGroup.orders.length} pedidos para coletar</p>
               </>
@@ -329,7 +360,9 @@ export default function ColetarPage() {
               </div>
               <button
                 className={`rounded px-4 py-2 text-sm ${
-                  selectedCount ? 'bg-blue-700 text-white' : 'bg-gray-200 text-gray-500'
+                  selectedCount && activeGroup && !activeGroup.isFuture
+                    ? 'bg-blue-700 text-white'
+                    : 'bg-gray-200 text-gray-500'
                 }`}
                 onClick={handleActivate}
               >
@@ -348,7 +381,9 @@ export default function ColetarPage() {
                 <div className="flex items-center justify-end">
                   <button
                     className={`rounded px-4 py-2 ${
-                      selectedCount ? 'bg-blue-700 text-white' : 'bg-gray-200 text-gray-500'
+                      selectedCount && !activeGroup.isFuture
+                        ? 'bg-blue-700 text-white'
+                        : 'bg-gray-200 text-gray-500'
                     }`}
                     onClick={handleActivate}
                   >
