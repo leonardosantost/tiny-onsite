@@ -337,16 +337,20 @@ class QrSegment {
 export default function QRCode({
   value,
   size = 64,
+  quietZone = 4,
 }: {
   value: string
   size?: number
+  quietZone?: number
 }) {
   if (!value) {
     return null
   }
   const qr = QrCode.encodeText(value, QrCode.Ecc.LOW)
   const cells = qr.modules
-  const cellSize = size / qr.size
+  const modules = qr.size + quietZone * 2
+  const cellSize = size / modules
+  const offset = quietZone * cellSize
   const rects = []
   for (let y = 0; y < qr.size; y += 1) {
     for (let x = 0; x < qr.size; x += 1) {
@@ -354,8 +358,8 @@ export default function QRCode({
         rects.push(
           <rect
             key={`${x}-${y}`}
-            x={x * cellSize}
-            y={y * cellSize}
+            x={offset + x * cellSize}
+            y={offset + y * cellSize}
             width={cellSize}
             height={cellSize}
             fill="#111"
@@ -366,7 +370,7 @@ export default function QRCode({
   }
 
   return (
-    <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size}>
+    <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} shapeRendering="crispEdges">
       <rect width={size} height={size} fill="#fff" />
       {rects}
     </svg>
