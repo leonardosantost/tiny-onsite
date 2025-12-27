@@ -66,10 +66,10 @@ export default function InventarioEtiquetasPrintPage() {
         }
         .label {
           box-sizing: border-box;
-          padding: 0.6cm;
+          padding: 0.6cm 0.6cm 0.2cm;
           display: flex;
           flex-direction: column;
-          gap: 6px;
+          gap: 4px;
           align-items: center;
           text-align: center;
           height: 9.9cm;
@@ -80,14 +80,14 @@ export default function InventarioEtiquetasPrintPage() {
           flex-direction: column;
           justify-content: center;
           align-items: center;
-          gap: 6px;
+          gap: 4px;
         }
         .logo {
           height: 28px;
           width: auto;
         }
         .title {
-          font-size: 16px;
+          font-size: 13px;
           font-weight: 700;
           line-height: 1.2;
         }
@@ -105,17 +105,18 @@ export default function InventarioEtiquetasPrintPage() {
           flex: 1;
         }
         .barcode {
-          margin-top: 6px;
+          margin-top: 0;
           width: 100%;
           box-sizing: border-box;
-          padding: 0 0.4cm;
+          padding: 0 0.2cm;
         }
         .barcode-text {
-          margin-top: 6px;
+          margin-top: 0;
           text-align: center;
           font-size: 12px;
           letter-spacing: 0.08em;
           font-weight: 700;
+          line-height: 1;
         }
         @media print {
           .print-toolbar {
@@ -140,10 +141,7 @@ export default function InventarioEtiquetasPrintPage() {
             <div className="content">
               <img src="/LOGO ICON QD.png" alt="Logo" className="logo" />
               <div className="title">{label.title.toUpperCase()}</div>
-              <div>
-                <div className="meta">{label.codeLabel}</div>
-                <div className="value">{label.code}</div>
-              </div>
+              <div className="value">{label.code}</div>
             </div>
             <div className="barcode">
               <Barcode value={label.code} />
