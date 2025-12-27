@@ -259,7 +259,7 @@ export default function InventarioEtiquetasPrintPage() {
               <div className="top">
                 <div className="top-content">
                   <div className="qr">
-                    <QRCode value={label.sku} size={72} quietZone={4} />
+                    <QRCode value={label.sku} size={72} quietZone={0} />
                   </div>
                   <div className="title">{parsed.baseTitle}</div>
                   <div className="variation-grid">
