@@ -45,7 +45,7 @@ class QrSegment {
     return result
   }
 
-  private static getModeBitsIndex(version: number) {
+  static getModeBitsIndex(version: number) {
     if (1 <= version && version <= 9) return 0
     if (10 <= version && version <= 26) return 1
     return 2
