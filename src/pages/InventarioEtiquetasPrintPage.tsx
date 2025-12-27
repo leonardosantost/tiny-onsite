@@ -184,9 +184,10 @@ export default function InventarioEtiquetasPrintPage() {
         }
         .barcode {
           margin-top: 0;
-          width: 100%;
+          width: calc(100% + 0.6cm);
           box-sizing: border-box;
           padding: 0;
+          margin-left: -0.3cm;
         }
         .barcode svg {
           border: none;
