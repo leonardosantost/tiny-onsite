@@ -164,7 +164,7 @@ export default function Barcode({
     <svg
       viewBox={`0 0 ${viewWidth} ${height}`}
       preserveAspectRatio="none"
-      className="w-full bg-white"
+      className="w-full"
       style={{ height }}
     >
       {bars.map((bar, index) => (

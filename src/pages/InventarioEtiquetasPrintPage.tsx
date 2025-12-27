@@ -147,12 +147,19 @@ export default function InventarioEtiquetasPrintPage() {
           align-items: flex-start;
           text-align: left;
         }
+        .top-row {
+          width: 100%;
+          display: grid;
+          grid-template-columns: 3cm 1fr;
+          gap: 0.2cm;
+          align-items: center;
+        }
         .title {
           margin-bottom: -0.05cm;
         }
         .qr {
-          width: 2.6cm;
-          height: 2.6cm;
+          width: 3cm;
+          height: 3cm;
           margin-bottom: 0.15cm;
         }
         .title {
@@ -168,8 +175,8 @@ export default function InventarioEtiquetasPrintPage() {
         .variation-grid {
           width: 100%;
           display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 0.2cm;
+          grid-template-columns: 1fr;
+          gap: 0.16cm;
         }
         .variation-label {
           font-size: 7px;
@@ -261,18 +268,20 @@ export default function InventarioEtiquetasPrintPage() {
               <div className="top">
                 <div className="top-content">
                   <div className="title">{parsed.baseTitle}</div>
-                  <div className="variation-grid">
-                    <div>
-                      <div className="variation-label">Tamanho</div>
-                      <div className="variation-size">{sizeText}</div>
+                  <div className="top-row">
+                    <div className="qr">
+                      <QRCode value={label.sku || label.code} size={200} quietZone={0} ecc={0} />
                     </div>
-                    <div>
-                      <div className="variation-label">Cor / Variações</div>
-                      <div className="variation-text">{variationText}</div>
+                    <div className="variation-grid">
+                      <div>
+                        <div className="variation-label">Tamanho</div>
+                        <div className="variation-size">{sizeText}</div>
+                      </div>
+                      <div>
+                        <div className="variation-label">Variações</div>
+                        <div className="variation-text">{variationText}</div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="qr">
-                    <QRCode value={label.sku || label.code} size={180} quietZone={0} ecc={0} />
                   </div>
                 </div>
               </div>
