@@ -124,7 +124,7 @@ export default function InventarioEtiquetasPrintPage() {
           padding: 0.5cm 0.5cm 0.25cm;
           display: flex;
           flex-direction: column;
-          gap: 0.2cm;
+          gap: 0.1cm;
           align-items: stretch;
           text-align: left;
           height: 9.9cm;
@@ -138,7 +138,7 @@ export default function InventarioEtiquetasPrintPage() {
           flex: 1;
           min-height: 0;
           justify-content: flex-end;
-          padding-bottom: 0.35cm;
+          padding-bottom: 0.2cm;
         }
         .top-content {
           display: flex;
@@ -157,7 +157,7 @@ export default function InventarioEtiquetasPrintPage() {
           margin-bottom: 0.15cm;
         }
         .title {
-          font-size: 13px;
+          font-size: 10px;
           font-weight: 700;
           line-height: 1.2;
           text-transform: uppercase;
@@ -181,7 +181,7 @@ export default function InventarioEtiquetasPrintPage() {
           font-weight: 700;
         }
         .variation-size {
-          font-size: 36px;
+          font-size: 30px;
           font-weight: 800;
           line-height: 1;
           text-align: left;
@@ -219,7 +219,7 @@ export default function InventarioEtiquetasPrintPage() {
           letter-spacing: 0.02em;
           text-align: center;
           line-height: 1.1;
-          padding-top: 10px;
+          padding-top: 4px;
           width: 100%;
           max-width: 100%;
           box-sizing: border-box;
