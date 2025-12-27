@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import LoadingOverlay from '../components/LoadingOverlay'
 import { supabaseUrl } from '../config'
+import { tinyFetch } from '../lib/tinyFetch'
 import { formatOrderDate } from '../utils/date'
 
 function buildPrintPage(manifest: any) {
@@ -50,7 +51,7 @@ function buildPrintPage(manifest: any) {
       </style>
     </head>
     <body>
-      <div class="logo"><img src="${logoUrl}" alt="Mercado Livre" /></div>
+      <div class="logo"><img src="${logoUrl}" alt="Tiny ERP" /></div>
       <h1>Manifesto de coleta</h1>
       <div class="muted">ID do manifesto: ${manifest.id}</div>
       <div class="muted">Status: ${manifest.status}</div>
@@ -91,7 +92,7 @@ export default function ManifestarDetailPage() {
       setLoading(true)
       setError(null)
       try {
-        const response = await fetch(`${supabaseUrl}/functions/v1/ml-manifests?id=${id}&include_items=1`, {
+        const response = await tinyFetch(`${supabaseUrl}/functions/v1/tiny-manifests?id=${id}&include_items=1`, {
           signal: controller.signal,
         })
         if (!response.ok) {

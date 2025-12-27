@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import LoadingOverlay from '../components/LoadingOverlay'
-import { mlAccountId, supabaseUrl } from '../config'
+import { tinyAccountId, supabaseUrl } from '../config'
+import { tinyFetch } from '../lib/tinyFetch'
 
 const bins = ['A1', 'A2', 'A3']
 const actions = [
@@ -40,8 +41,8 @@ export default function AjustarPage() {
       setPageLoading(true)
     }
     try {
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/ml-adjustments${skuValue ? `?sku=${skuValue}` : ''}`,
+      const response = await tinyFetch(
+        `${supabaseUrl}/functions/v1/tiny-adjustments${skuValue ? `?sku=${skuValue}` : ''}`,
       )
       if (!response.ok) return
       const data = await response.json()
@@ -55,7 +56,9 @@ export default function AjustarPage() {
 
   const resolveSkuFromInventory = async (code: string) => {
     if (!supabaseUrl) return code
-    const response = await fetch(`${supabaseUrl}/functions/v1/ml-inventory?account_id=${mlAccountId}&details=1`)
+    const response = await tinyFetch(
+      `${supabaseUrl}/functions/v1/tiny-inventory?account_id=${tinyAccountId}&details=1`,
+    )
     if (!response.ok) return code
     const data = await response.json()
     const items = Array.isArray(data?.results) ? data.results : []
@@ -92,7 +95,7 @@ export default function AjustarPage() {
     if (!supabaseUrl) return
     const totals: Record<string, number> = {}
     for (const skuValue of skuValues.filter(Boolean)) {
-      const response = await fetch(`${supabaseUrl}/functions/v1/ml-bins?sku=${skuValue}`)
+      const response = await tinyFetch(`${supabaseUrl}/functions/v1/tiny-bins?sku=${skuValue}`)
       if (!response.ok) {
         continue
       }
@@ -125,8 +128,8 @@ export default function AjustarPage() {
     resolveSkuFromInventory(trimmed)
       .then((lookupSku) => {
         setResolvedSku(String(lookupSku))
-        return fetch(
-          `${supabaseUrl}/functions/v1/ml-item-lookup?account_id=${mlAccountId}&sku=${lookupSku}`,
+        return tinyFetch(
+          `${supabaseUrl}/functions/v1/tiny-item-lookup?account_id=${tinyAccountId}&sku=${lookupSku}`,
         )
       })
       .then(async (response) => {
@@ -200,11 +203,11 @@ export default function AjustarPage() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`${supabaseUrl}/functions/v1/ml-adjust-stock`, {
+      const response = await tinyFetch(`${supabaseUrl}/functions/v1/tiny-adjust-stock`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          account_id: mlAccountId,
+          account_id: tinyAccountId,
           sku: skuValue,
           quantity: qty,
           action,

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import LoadingOverlay from '../components/LoadingOverlay'
-import { mlAccountId, supabaseUrl } from '../config'
+import { tinyAccountId, supabaseUrl } from '../config'
+import { tinyFetch } from '../lib/tinyFetch'
 import { formatOrderDate } from '../utils/date'
 
 export default function InventarioDetalhePage() {
@@ -9,6 +10,7 @@ export default function InventarioDetalhePage() {
   const [data, setData] = useState<any | null>(null)
   const [adjustments, setAdjustments] = useState<any[]>([])
   const [receipts, setReceipts] = useState<any[]>([])
+  const [stock, setStock] = useState<any | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -23,16 +25,25 @@ export default function InventarioDetalhePage() {
       setLoading(true)
       setError(null)
       try {
-        const [productResponse, adjustmentsResponse, receiptsResponse] = await Promise.all([
-          fetch(`${supabaseUrl}/functions/v1/ml-user-product?account_id=${mlAccountId}&user_product_id=${id}`, {
+        const [productResponse, adjustmentsResponse, receiptsResponse, stockResponse] = await Promise.all([
+          tinyFetch(
+            `${supabaseUrl}/functions/v1/tiny-user-product?account_id=${tinyAccountId}&user_product_id=${id}`,
+            {
+              signal: controller.signal,
+            },
+          ),
+          tinyFetch(`${supabaseUrl}/functions/v1/tiny-adjustments`, {
             signal: controller.signal,
           }),
-          fetch(`${supabaseUrl}/functions/v1/ml-adjustments`, {
+          tinyFetch(`${supabaseUrl}/functions/v1/tiny-bins`, {
             signal: controller.signal,
           }),
-          fetch(`${supabaseUrl}/functions/v1/ml-bins`, {
-            signal: controller.signal,
-          }),
+          tinyFetch(
+            `${supabaseUrl}/functions/v1/tiny-inventory?account_id=${tinyAccountId}&mode=stock&product_id=${id}`,
+            {
+              signal: controller.signal,
+            },
+          ),
         ])
         if (!productResponse.ok) {
           throw new Error(`Erro ao carregar produto: ${productResponse.status}`)
@@ -46,6 +57,12 @@ export default function InventarioDetalhePage() {
         if (receiptsResponse.ok) {
           const receiptsPayload = await receiptsResponse.json()
           setReceipts(Array.isArray(receiptsPayload) ? receiptsPayload : [])
+        }
+        if (stockResponse.ok) {
+          const stockPayload = await stockResponse.json()
+          setStock(stockPayload)
+        } else {
+          setStock(null)
         }
       } catch (err) {
         if (!(err instanceof DOMException && err.name === 'AbortError')) {
@@ -76,6 +93,17 @@ export default function InventarioDetalhePage() {
   )
   const filteredAdjustments = adjustments.filter((entry) => skuCandidates.has(String(entry?.sku)))
   const filteredReceipts = receipts.filter((entry) => skuCandidates.has(String(entry?.sku)))
+  const stockDeposits = Array.isArray(stock?.depositos) ? stock.depositos : []
+  const normalizedDeposits = stockDeposits.map((entry: any) => {
+    const deposit = entry?.deposito ?? entry
+    return {
+      nome: deposit?.nome ?? '-',
+      desconsiderar: deposit?.desconsiderar ?? null,
+      saldo: Number(deposit?.saldo ?? 0),
+      reservado: Number(deposit?.reservado ?? deposit?.saldoReservado ?? 0),
+      disponivel: Number(deposit?.disponivel ?? 0),
+    }
+  })
   const inventoryHistory = [
     ...filteredReceipts.map((entry) => ({
       id: `receipt-${entry.id}`,
@@ -145,6 +173,58 @@ export default function InventarioDetalhePage() {
               </div>
             </div>
           </section>
+
+          {stock ? (
+            <section className="px-4 pt-6 sm:px-8">
+              <div className="rounded border border-black/10 bg-white p-4">
+                <h2 className="text-lg font-semibold">Estoque no Tiny</h2>
+                <div className="mt-3 grid gap-4 text-sm sm:grid-cols-3">
+                  <div>
+                    <div className="text-[var(--ink-muted)]">Saldo</div>
+                    <div className="mt-1 text-lg font-semibold">{stock?.saldo ?? 0}</div>
+                  </div>
+                  <div>
+                    <div className="text-[var(--ink-muted)]">Reservado</div>
+                    <div className="mt-1 text-lg font-semibold">
+                      {stock?.reservado ?? stock?.saldoReservado ?? 0}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[var(--ink-muted)]">Disponível</div>
+                    <div className="mt-1 text-lg font-semibold">{stock?.disponivel ?? 0}</div>
+                  </div>
+                </div>
+
+                {normalizedDeposits.length ? (
+                  <>
+                    <div className="mt-6 grid grid-cols-[1.4fr_1fr_1fr_1fr_1fr] gap-4 border-b border-black/10 pb-2 text-xs font-semibold text-[var(--ink-muted)]">
+                      <span>Depósito</span>
+                      <span>Saldo</span>
+                      <span>Reservado</span>
+                      <span>Disponível</span>
+                      <span>Desconsiderar</span>
+                    </div>
+                    <div className="mt-2 flex flex-col gap-2">
+                      {normalizedDeposits.map((deposit: any, index: number) => (
+                        <div
+                          key={`${deposit.nome}-${index}`}
+                          className="grid grid-cols-[1.4fr_1fr_1fr_1fr_1fr] gap-4 border-b border-black/10 py-2 text-sm"
+                        >
+                          <div>{deposit.nome ?? '-'}</div>
+                          <div>{deposit.saldo ?? 0}</div>
+                          <div>{deposit.reservado ?? 0}</div>
+                          <div>{deposit.disponivel ?? 0}</div>
+                          <div>{deposit.desconsiderar ? 'Sim' : 'Não'}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="mt-3 text-sm text-[var(--ink-muted)]">Sem depósitos cadastrados.</div>
+                )}
+              </div>
+            </section>
+          ) : null}
 
           <section className="px-4 pt-6 pb-10 sm:px-8">
             <div className="rounded border border-black/10 bg-white p-4">

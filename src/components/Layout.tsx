@@ -14,6 +14,7 @@ const menuItems: { pedidos: MenuItem[]; inventario: MenuItem[] } = {
   ],
   inventario: [
     { label: 'Todo o inventário', to: '/inventario/todo', permission: 'inventario_todo' },
+    { label: 'Etiquetas', to: '/inventario/etiquetas', permission: 'inventario_todo' },
     { label: 'Receber', to: '/inventario/receber', permission: 'inventario_receber' },
     { label: 'Ajustar', to: '/inventario/ajustar', permission: 'inventario_ajustar' },
   ],
@@ -30,7 +31,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <div className="relative flex min-h-screen">
         <aside className="fixed inset-y-0 left-0 hidden w-72 flex-col gap-6 bg-[var(--nav)] px-6 py-8 text-white lg:flex">
           <div className="flex items-center gap-3">
-            <img src="/ml_logo.png" alt="Mercado Livre" className="h-8 w-auto" />
+            <img src="/ml_logo.png" alt="Tiny ERP" className="h-8 w-auto" />
           </div>
           <div className="rounded-lg bg-white/10 px-3 py-2 text-xs text-white/80">
             <p className="font-semibold text-white">{session?.user?.email ?? 'Usuário'}</p>
@@ -100,7 +101,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           }`}
         >
           <div className="flex items-center justify-between gap-3">
-            <img src="/ml_logo.png" alt="Mercado Livre" className="h-8 w-auto" />
+            <img src="/ml_logo.png" alt="Tiny ERP" className="h-8 w-auto" />
             <button
               className="rounded border border-white/20 px-2 py-1 text-xs"
               onClick={() => setMobileOpen(false)}

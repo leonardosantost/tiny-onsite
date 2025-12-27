@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import Barcode from '../components/Barcode'
 import LoadingOverlay from '../components/LoadingOverlay'
 import { supabaseUrl } from '../config'
+import { tinyFetch } from '../lib/tinyFetch'
 import { formatCutoffDisplay, formatOrderDate } from '../utils/date'
 
 function barcodeBars(value: string) {
@@ -45,7 +46,7 @@ export default function ColetarDetailPage() {
       setLoading(true)
       setError(null)
       try {
-        const response = await fetch(`${supabaseUrl}/functions/v1/ml-picklists?id=${id}`, {
+        const response = await tinyFetch(`${supabaseUrl}/functions/v1/tiny-picklists?id=${id}`, {
           signal: controller.signal,
         })
         if (!response.ok) {

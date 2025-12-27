@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.203.0/http/server.ts'
-import { getToken, isExpired, refreshToken, upsertToken } from '../_shared/ml.ts'
+import { ensureAccessToken, tinyApiBaseUrl } from '../_shared/tiny.ts'
 import { supabase } from '../_shared/supabase.ts'
 
 function corsHeaders() {
@@ -21,38 +21,41 @@ function stringifyError(err: unknown) {
   }
 }
 
-async function updateMlStock(
-  accessToken: string,
-  itemId: string,
-  delta: number,
-): Promise<{ previous: number; updated: number }> {
-  const detailUrl = new URL(`https://api.mercadolibre.com/items/${itemId}`)
-  detailUrl.searchParams.set('access_token', accessToken)
-
-  const detailResponse = await fetch(detailUrl.toString())
-  const detailText = await detailResponse.text()
-  if (!detailResponse.ok) {
-    throw new Error(detailText)
-  }
-
-  const detailBody = JSON.parse(detailText)
-  const currentAvailable = detailBody?.available_quantity ?? 0
-  const newAvailable = Math.max(0, currentAvailable + delta)
-
-  const updateResponse = await fetch(detailUrl.toString(), {
-    method: 'PUT',
+async function tinyGet(accessToken: string, path: string, params?: Record<string, string>) {
+  const url = new URL(`${tinyApiBaseUrl}${path}`)
+  Object.entries(params ?? {}).forEach(([key, value]) => {
+    if (value) url.searchParams.set(key, value)
+  })
+  const response = await fetch(url.toString(), {
     headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+  const bodyText = await response.text()
+  if (!response.ok) {
+    throw new Error(bodyText || `Tiny request failed (${response.status})`)
+  }
+  return JSON.parse(bodyText)
+}
+
+async function updateTinyStock(accessToken: string, productId: number, type: 'E' | 'S', quantity: number) {
+  const response = await fetch(`${tinyApiBaseUrl}/estoque/${productId}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ available_quantity: newAvailable }),
+    body: JSON.stringify({
+      tipo: type,
+      quantidade: quantity,
+      data: new Date().toISOString(),
+    }),
   })
-
-  if (!updateResponse.ok) {
-    const updateText = await updateResponse.text()
-    throw new Error(updateText)
+  const bodyText = await response.text()
+  if (!response.ok) {
+    throw new Error(bodyText || `Tiny stock update failed (${response.status})`)
   }
-
-  return { previous: currentAvailable, updated: newAvailable }
+  return JSON.parse(bodyText)
 }
 
 serve(async (request) => {
@@ -84,78 +87,20 @@ serve(async (request) => {
       })
     }
 
-    const { data, error } = await getToken(accountId)
-    if (error || !data) {
-      return new Response(JSON.stringify({ error: 'Token not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-      })
-    }
-
-    const tokenRow = Array.isArray(data) ? data[0] : data
-    if (!tokenRow?.access_token || !tokenRow?.refresh_token) {
-      return new Response(JSON.stringify({ error: 'Invalid token row shape', data }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-      })
-    }
-
-    let accessToken = tokenRow.access_token
-    let userId = tokenRow.user_id
-
-    if (isExpired(tokenRow.expires_at)) {
-      const refreshed = await refreshToken(tokenRow.refresh_token)
-      if (!refreshed?.access_token || !refreshed?.refresh_token || !refreshed?.expires_in) {
-        return new Response(JSON.stringify({ error: 'Refresh returned invalid payload', refreshed }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-        })
-      }
-      await upsertToken(accountId, {
-        access_token: refreshed.access_token,
-        refresh_token: refreshed.refresh_token,
-        expires_in: refreshed.expires_in,
-        user_id: refreshed.user_id ?? tokenRow.user_id ?? undefined,
-        marketplace: tokenRow.marketplace,
-      })
-      accessToken = refreshed.access_token
-      userId = refreshed.user_id ?? tokenRow.user_id
-    }
-
-    if (!userId) {
-      return new Response(JSON.stringify({ error: 'Missing user_id in token' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-      })
-    }
-
-    const searchUrl = new URL(`https://api.mercadolibre.com/users/${userId}/items/search`)
-    searchUrl.searchParams.set('seller_sku', sku)
-    searchUrl.searchParams.set('access_token', accessToken)
-
-    const searchResponse = await fetch(searchUrl.toString())
-    const searchText = await searchResponse.text()
-    if (!searchResponse.ok) {
-      return new Response(searchText, {
-        status: searchResponse.status,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-      })
-    }
-
-    const searchBody = JSON.parse(searchText)
-    const ids = Array.isArray(searchBody?.results) ? searchBody.results : []
-    if (!ids.length) {
+    const accessToken = await ensureAccessToken(accountId)
+    const search = await tinyGet(accessToken, '/produtos', { codigo: sku })
+    const list = Array.isArray(search?.itens) ? search.itens : []
+    if (!list.length || !list[0]?.id) {
       return new Response(JSON.stringify({ error: 'SKU not found' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json', ...corsHeaders() },
       })
     }
 
-    const itemId = ids[0]
-    let stockResult: { previous: number; updated: number } | null = null
+    const productId = Number(list[0].id)
 
     if (['excluir', 'danos', 'perda'].includes(action)) {
-      stockResult = await updateMlStock(accessToken, itemId, -Math.abs(quantity))
+      await updateTinyStock(accessToken, productId, 'S', Math.abs(quantity))
     }
 
     const updateBinQuantity = async (bin: string, delta: number) => {
@@ -173,12 +118,15 @@ serve(async (request) => {
       const updatedQty = Math.max(0, (existingBin?.quantity ?? 0) + delta)
 
       const { error: saveError } = existingBin
-        ? await supabase.from('inventory_bins').update({ quantity: updatedQty, item_id: itemId }).eq('id', existingBin.id)
+        ? await supabase
+            .from('inventory_bins')
+            .update({ quantity: updatedQty, item_id: String(productId) })
+            .eq('id', existingBin.id)
         : await supabase.from('inventory_bins').insert({
             sku,
             bin,
             quantity: updatedQty,
-            item_id: itemId,
+            item_id: String(productId),
           })
 
       if (saveError) {
@@ -219,10 +167,9 @@ serve(async (request) => {
     return new Response(
       JSON.stringify({
         sku,
-        item_id: itemId,
+        item_id: String(productId),
         action,
         quantity,
-        stock: stockResult,
       }),
       {
         status: 200,
@@ -231,7 +178,7 @@ serve(async (request) => {
     )
   } catch (error) {
     const e = stringifyError(error)
-    console.error('ml-adjust-stock error', e)
+    console.error('tiny-adjust-stock error', e)
     return new Response(JSON.stringify({ error: e }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders() },

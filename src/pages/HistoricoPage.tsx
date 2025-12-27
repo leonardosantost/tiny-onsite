@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import LoadingOverlay from '../components/LoadingOverlay'
-import { mlAccountId, supabaseUrl } from '../config'
+import { tinyAccountId, supabaseUrl } from '../config'
+import { tinyFetch } from '../lib/tinyFetch'
 import { formatCutoffDisplay, formatOrderDate } from '../utils/date'
 import { getOrderStatus, getCutoff, isPaidAndAuthorized, sortOrders } from '../utils/orders'
 
@@ -38,16 +39,16 @@ export default function HistoricoPage() {
       setError(null)
       try {
         const [ordersResponse, listsResponse, inventoryResponse, manifestsResponse] = await Promise.all([
-          fetch(`${supabaseUrl}/functions/v1/ml-orders?account_id=${mlAccountId}&details=1`, {
+          tinyFetch(`${supabaseUrl}/functions/v1/tiny-orders?account_id=${tinyAccountId}&details=1`, {
             signal: controller.signal,
           }),
-          fetch(`${supabaseUrl}/functions/v1/ml-picklists?include_items=1`, {
+          tinyFetch(`${supabaseUrl}/functions/v1/tiny-picklists?include_items=1`, {
             signal: controller.signal,
           }),
-          fetch(`${supabaseUrl}/functions/v1/ml-inventory?account_id=${mlAccountId}&details=1`, {
+          tinyFetch(`${supabaseUrl}/functions/v1/tiny-inventory?account_id=${tinyAccountId}&details=1`, {
             signal: controller.signal,
           }),
-          fetch(`${supabaseUrl}/functions/v1/ml-manifests?include_items=1`, {
+          tinyFetch(`${supabaseUrl}/functions/v1/tiny-manifests?include_items=1`, {
             signal: controller.signal,
           }),
         ])
@@ -145,7 +146,7 @@ export default function HistoricoPage() {
                   : '-',
               status,
               cutoff,
-              channel: 'Mercado Livre',
+              channel: 'Tiny ERP',
               items: thumb ?? '',
               itemsCount: items.length,
               qty: totalQty,

@@ -40,7 +40,7 @@ const fetchPermissionsWithTimeout = async (userId: string, timeoutMs: number) =>
   return result
 }
 
-const permissionsStorageKey = 'ml-onsite-permissions'
+const permissionsStorageKey = 'tiny-onsite-permissions'
 
 const readCachedPermissions = (userId: string): Permission[] | null => {
   if (typeof window === 'undefined') return null

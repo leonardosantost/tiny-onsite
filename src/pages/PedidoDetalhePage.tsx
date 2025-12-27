@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import LoadingOverlay from '../components/LoadingOverlay'
-import { mlAccountId, supabaseUrl } from '../config'
+import { tinyAccountId, supabaseUrl } from '../config'
+import { tinyFetch } from '../lib/tinyFetch'
 import { formatCutoffDisplay, formatOrderDate } from '../utils/date'
 import { getCutoff, isShipped } from '../utils/orders'
 
@@ -25,8 +26,8 @@ export default function PedidoDetalhePage() {
       setLoading(true)
       setError(null)
       try {
-        const response = await fetch(
-          `${supabaseUrl}/functions/v1/ml-orders?account_id=${mlAccountId}&details=1&order_id=${id}`,
+        const response = await tinyFetch(
+          `${supabaseUrl}/functions/v1/tiny-orders?account_id=${tinyAccountId}&details=1&order_id=${id}`,
           { signal: controller.signal },
         )
         if (!response.ok) {
@@ -36,7 +37,7 @@ export default function PedidoDetalhePage() {
         setOrder(data)
 
         try {
-          const listsResponse = await fetch(`${supabaseUrl}/functions/v1/ml-picklists?include_items=1`, {
+          const listsResponse = await tinyFetch(`${supabaseUrl}/functions/v1/tiny-picklists?include_items=1`, {
             signal: controller.signal,
           })
           if (listsResponse.ok) {
@@ -48,8 +49,8 @@ export default function PedidoDetalhePage() {
         }
 
         try {
-          const inventoryResponse = await fetch(
-            `${supabaseUrl}/functions/v1/ml-inventory?account_id=${mlAccountId}&details=1`,
+          const inventoryResponse = await tinyFetch(
+            `${supabaseUrl}/functions/v1/tiny-inventory?account_id=${tinyAccountId}&details=1`,
             { signal: controller.signal },
           )
           if (inventoryResponse.ok) {

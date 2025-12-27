@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import LoadingOverlay from '../components/LoadingOverlay'
-import { mlAccountId, supabaseUrl } from '../config'
+import { tinyAccountId, supabaseUrl } from '../config'
+import { tinyFetch } from '../lib/tinyFetch'
 
 const bins = ['A1', 'A2', 'A3']
 
@@ -24,7 +25,7 @@ export default function ReceberPage() {
 
   const loadBins = async (skuValue: string) => {
     if (!supabaseUrl) return
-    const response = await fetch(`${supabaseUrl}/functions/v1/ml-bins?sku=${skuValue}`)
+    const response = await tinyFetch(`${supabaseUrl}/functions/v1/tiny-bins?sku=${skuValue}`)
     if (!response.ok) return
     const data = await response.json()
     setBinsLog(Array.isArray(data) ? data : [])
@@ -32,7 +33,9 @@ export default function ReceberPage() {
 
   const resolveSkuFromInventory = async (code: string) => {
     if (!supabaseUrl) return code
-    const response = await fetch(`${supabaseUrl}/functions/v1/ml-inventory?account_id=${mlAccountId}&details=1`)
+    const response = await tinyFetch(
+      `${supabaseUrl}/functions/v1/tiny-inventory?account_id=${tinyAccountId}&details=1`,
+    )
     if (!response.ok) return code
     const data = await response.json()
     const items = Array.isArray(data?.results) ? data.results : []
@@ -79,8 +82,8 @@ export default function ReceberPage() {
     try {
       const lookupSku = await resolveSkuFromInventory(trimmed)
       setResolvedSku(String(lookupSku))
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/ml-item-lookup?account_id=${mlAccountId}&sku=${lookupSku}`,
+      const response = await tinyFetch(
+        `${supabaseUrl}/functions/v1/tiny-item-lookup?account_id=${tinyAccountId}&sku=${lookupSku}`,
       )
       if (!response.ok) {
         throw new Error(`SKU não encontrado: ${response.status}`)
@@ -118,11 +121,11 @@ export default function ReceberPage() {
     setSaving(true)
     setError(null)
     try {
-      const response = await fetch(`${supabaseUrl}/functions/v1/ml-receive-stock`, {
+      const response = await tinyFetch(`${supabaseUrl}/functions/v1/tiny-receive-stock`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          account_id: mlAccountId,
+          account_id: tinyAccountId,
           sku: skuValue,
           quantity: qty,
           bin: selectedBin,

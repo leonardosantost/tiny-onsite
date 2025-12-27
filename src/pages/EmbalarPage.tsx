@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import LoadingOverlay from '../components/LoadingOverlay'
-import { mlAccountId, supabaseUrl } from '../config'
+import { tinyAccountId, supabaseUrl } from '../config'
+import { tinyFetch } from '../lib/tinyFetch'
 import { formatCutoffDisplay } from '../utils/date'
 
 export default function EmbalarPage() {
@@ -70,7 +71,7 @@ export default function EmbalarPage() {
     setCanPackToday(true)
     setCutoffLabel(null)
     try {
-      const response = await fetch(`${supabaseUrl}/functions/v1/ml-picklists?id=${trimmed}`)
+      const response = await tinyFetch(`${supabaseUrl}/functions/v1/tiny-picklists?id=${trimmed}`)
       if (!response.ok) {
         throw new Error(`Lista não encontrada: ${response.status}`)
       }
@@ -101,8 +102,8 @@ export default function EmbalarPage() {
       setSuccessMessage('')
       setPickListReady(true)
       try {
-        const inventoryResponse = await fetch(
-          `${supabaseUrl}/functions/v1/ml-inventory?account_id=${mlAccountId}&details=1`,
+        const inventoryResponse = await tinyFetch(
+          `${supabaseUrl}/functions/v1/tiny-inventory?account_id=${tinyAccountId}&details=1`,
         )
         if (inventoryResponse.ok) {
           const inventoryData = await inventoryResponse.json()
@@ -226,18 +227,17 @@ export default function EmbalarPage() {
       return
     }
     if (!labelCode.trim()) return
+    let hasMismatch = false
     if (currentProduct?.shipment_id) {
       const expected = String(currentProduct.shipment_id)
       if (!labelCode.includes(expected)) {
-        setLabelError(true)
-        setError('Etiqueta não corresponde ao envio deste item.')
-        return
+        hasMismatch = true
       }
     }
-    setLabelError(false)
+    setLabelError(hasMismatch)
     setLabelCode('')
     setPrintMessage('')
-    setError(null)
+    setError(hasMismatch ? 'Etiqueta não corresponde ao envio deste item. Verifique o pacote.' : null)
     if (currentIndex === null) return
     const updatedPacked = packedItems.includes(currentIndex)
       ? packedItems
@@ -247,7 +247,7 @@ export default function EmbalarPage() {
 
     const item = items[currentIndex]
     if (supabaseUrl && list?.list_code && item?.id) {
-      fetch(`${supabaseUrl}/functions/v1/ml-picklists`, {
+      tinyFetch(`${supabaseUrl}/functions/v1/tiny-picklists`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -276,15 +276,19 @@ export default function EmbalarPage() {
       return
     }
     setError(null)
-    const response = await fetch(
-      `${supabaseUrl}/functions/v1/ml-print-label?account_id=${mlAccountId}&shipment_id=${resolvedShipmentId}`,
+    const response = await tinyFetch(
+      `${supabaseUrl}/functions/v1/tiny-print-label?account_id=${tinyAccountId}&shipment_id=${resolvedShipmentId}`,
     )
     if (!response.ok) {
       setError(`Falha ao imprimir etiqueta: ${response.status}`)
       return
     }
-    const blob = await response.blob()
-    const url = URL.createObjectURL(blob)
+    const data = await response.json()
+    const url = Array.isArray(data?.urls) ? data.urls[0] : null
+    if (!url) {
+      setError('Etiqueta não encontrada.')
+      return
+    }
     window.open(url, '_blank')
   }
 
@@ -397,7 +401,7 @@ export default function EmbalarPage() {
                           <div className="font-semibold">{currentProduct?.order_id ?? '-'}</div>
                         </div>
                         <span className="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-700">
-                          Mercado Livre
+                          Tiny ERP
                         </span>
                       </div>
                       <p className="mt-4 font-semibold text-blue-700">{currentProduct?.title ?? '-'}</p>

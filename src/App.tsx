@@ -9,6 +9,8 @@ import ColetarPage from './pages/ColetarPage'
 import EmbalarPage from './pages/EmbalarPage'
 import HistoricoPage from './pages/HistoricoPage'
 import InventarioDetalhePage from './pages/InventarioDetalhePage'
+import InventarioEtiquetasPage from './pages/InventarioEtiquetasPage'
+import InventarioEtiquetasPrintPage from './pages/InventarioEtiquetasPrintPage'
 import InventarioPage from './pages/InventarioPage'
 import LoginPage from './pages/LoginPage'
 import ManifestarPage from './pages/ManifestarPage'
@@ -39,6 +41,7 @@ const TitleUpdater = () => {
       { match: (pathname) => pathname.startsWith('/pedidos/embalar'), title: `Embalar - ${baseTitle}` },
       { match: (pathname) => pathname.startsWith('/pedidos/manifestar'), title: `Manifestar - ${baseTitle}` },
       { match: (pathname) => pathname.startsWith('/inventario/todo'), title: `Todo o inventário - ${baseTitle}` },
+      { match: (pathname) => pathname.startsWith('/inventario/etiquetas'), title: `Etiquetas - ${baseTitle}` },
       { match: (pathname) => pathname.startsWith('/inventario/receber'), title: `Receber - ${baseTitle}` },
       { match: (pathname) => pathname.startsWith('/inventario/ajustar'), title: `Ajustar - ${baseTitle}` },
       { match: (pathname) => pathname.startsWith('/inventario/'), title: `Inventário - ${baseTitle}` },
@@ -79,6 +82,14 @@ export default function App() {
       <TitleUpdater />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/inventario/etiquetas/print"
+          element={
+            <ProtectedRoute permission="inventario_todo">
+              <InventarioEtiquetasPrintPage />
+            </ProtectedRoute>
+          }
+        />
         <Route element={<ProtectedLayout />}>
           <Route path="/" element={<HomeRedirect />} />
           <Route
@@ -146,14 +157,6 @@ export default function App() {
             }
           />
           <Route
-            path="/inventario/:id"
-            element={
-              <ProtectedRoute permission="inventario_todo">
-                <InventarioDetalhePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
             path="/inventario/receber"
             element={
               <ProtectedRoute permission="inventario_receber">
@@ -166,6 +169,22 @@ export default function App() {
             element={
               <ProtectedRoute permission="inventario_ajustar">
                 <AjustarPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventario/etiquetas"
+            element={
+              <ProtectedRoute permission="inventario_todo">
+                <InventarioEtiquetasPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventario/:id"
+            element={
+              <ProtectedRoute permission="inventario_todo">
+                <InventarioDetalhePage />
               </ProtectedRoute>
             }
           />

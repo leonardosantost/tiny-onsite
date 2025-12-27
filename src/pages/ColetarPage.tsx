@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import LoadingOverlay from '../components/LoadingOverlay'
-import { mlAccountId, supabaseUrl } from '../config'
+import { tinyAccountId, supabaseUrl } from '../config'
+import { tinyFetch } from '../lib/tinyFetch'
 import { formatCutoffDisplay, formatDateTime } from '../utils/date'
 import { isLabelPrinted, isPaidAndAuthorized, isShipped } from '../utils/orders'
 
@@ -70,10 +71,10 @@ export default function ColetarPage() {
         const todayKey = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate()
 
         const [ordersResponse, listsResponse] = await Promise.all([
-          fetch(`${supabaseUrl}/functions/v1/ml-orders?account_id=${mlAccountId}&details=1`, {
+          tinyFetch(`${supabaseUrl}/functions/v1/tiny-orders?account_id=${tinyAccountId}&details=1`, {
             signal: controller.signal,
           }),
-          fetch(`${supabaseUrl}/functions/v1/ml-picklists?include_items=1`, { signal: controller.signal }),
+          tinyFetch(`${supabaseUrl}/functions/v1/tiny-picklists?include_items=1`, { signal: controller.signal }),
         ])
 
         if (!ordersResponse.ok) {
@@ -232,7 +233,7 @@ export default function ColetarPage() {
       items,
     }
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/ml-picklists`, {
+    const response = await tinyFetch(`${supabaseUrl}/functions/v1/tiny-picklists`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -459,7 +460,7 @@ export default function ColetarPage() {
                 <div>1</div>
                 <div>{activeGroup.orders.length}</div>
                 <div>{activeGroup.label}</div>
-                <div>Mercado Livre</div>
+                <div>Tiny ERP</div>
                 <div className="flex items-center justify-end">
                   <button
                     className={`rounded px-4 py-2 ${

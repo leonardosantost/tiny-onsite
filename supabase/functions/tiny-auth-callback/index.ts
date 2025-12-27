@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.203.0/http/server.ts'
-import { exchangeCodeForToken, upsertToken } from '../_shared/ml.ts'
+import { exchangeCodeForToken, upsertToken } from '../_shared/tiny.ts'
 
 serve(async (request) => {
   const url = new URL(request.url)
@@ -19,15 +19,16 @@ serve(async (request) => {
       access_token: tokenResponse.access_token,
       refresh_token: tokenResponse.refresh_token,
       expires_in: tokenResponse.expires_in,
-      user_id: tokenResponse.user_id,
-      marketplace: 'MLB',
+      scope: tokenResponse.scope,
+      token_type: tokenResponse.token_type,
     })
 
     return new Response(
       JSON.stringify({
         ok: true,
         account_id: accountId,
-        user_id: tokenResponse.user_id,
+        scope: tokenResponse.scope,
+        token_type: tokenResponse.token_type,
       }),
       { headers: { 'Content-Type': 'application/json' } },
     )

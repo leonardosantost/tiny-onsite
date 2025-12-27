@@ -50,7 +50,7 @@ export default function LoginPage() {
     >
       <div className="mx-auto w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-sm backdrop-blur">
         <div className="mb-6 flex flex-col items-center text-center">
-          <img src="/mercado-livre-2.svg" alt="Mercado Livre" className="h-16 w-auto" />
+          <img src="/mercado-livre-2.svg" alt="Tiny ERP" className="h-16 w-auto" />
           <h1 className="mt-4 text-lg font-semibold text-[var(--ink)]">Entrar</h1>
           <p className="mt-1 text-xs text-[var(--ink-muted)]">Acesse com seu usuário autorizado</p>
         </div>

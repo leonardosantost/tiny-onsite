@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import LoadingOverlay from '../components/LoadingOverlay'
-import { mlAccountId, supabaseUrl } from '../config'
+import { tinyAccountId, supabaseUrl } from '../config'
+import { tinyFetch } from '../lib/tinyFetch'
 import { formatCutoffDisplay, formatOrderDate } from '../utils/date'
 import { getCutoff, isPaidAndAuthorized, isShipped } from '../utils/orders'
 
@@ -36,13 +37,13 @@ export default function ManifestarPage() {
       setError(null)
       try {
         const [ordersResponse, manifestsResponse, listsResponse] = await Promise.all([
-          fetch(`${supabaseUrl}/functions/v1/ml-orders?account_id=${mlAccountId}&details=1`, {
+          tinyFetch(`${supabaseUrl}/functions/v1/tiny-orders?account_id=${tinyAccountId}&details=1`, {
             signal: controller.signal,
           }),
-          fetch(`${supabaseUrl}/functions/v1/ml-manifests?include_items=1`, {
+          tinyFetch(`${supabaseUrl}/functions/v1/tiny-manifests?include_items=1`, {
             signal: controller.signal,
           }),
-          fetch(`${supabaseUrl}/functions/v1/ml-picklists?include_items=1`, {
+          tinyFetch(`${supabaseUrl}/functions/v1/tiny-picklists?include_items=1`, {
             signal: controller.signal,
           }),
         ])
@@ -170,7 +171,7 @@ export default function ManifestarPage() {
       })),
     }
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/ml-manifests`, {
+    const response = await tinyFetch(`${supabaseUrl}/functions/v1/tiny-manifests`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
