@@ -1,27 +1,34 @@
+// Adapted from Nayuki QR Code Generator (MIT License)
+// https://www.nayuki.io/page/qr-code-generator-library
+
 type QrModule = boolean
 
 class QrSegment {
   static readonly Mode = {
-    NUMERIC: 0x1,
-    ALPHANUMERIC: 0x2,
-    BYTE: 0x4,
-    KANJI: 0x8,
+    NUMERIC: { modeBits: 0x1, numCharCountBits: [10, 12, 14] },
+    ALPHANUMERIC: { modeBits: 0x2, numCharCountBits: [9, 11, 13] },
+    BYTE: { modeBits: 0x4, numCharCountBits: [8, 16, 16] },
+    KANJI: { modeBits: 0x8, numCharCountBits: [8, 10, 12] },
   } as const
 
-  readonly mode: number
+  readonly mode: (typeof QrSegment.Mode)[keyof typeof QrSegment.Mode]
   readonly numChars: number
-  readonly data: number[]
+  readonly bitData: number[]
 
-  private constructor(mode: number, numChars: number, data: number[]) {
+  private constructor(
+    mode: (typeof QrSegment.Mode)[keyof typeof QrSegment.Mode],
+    numChars: number,
+    bitData: number[],
+  ) {
     this.mode = mode
     this.numChars = numChars
-    this.data = data
+    this.bitData = bitData
   }
 
   static makeBytes(data: number[]) {
-    const bb: number[] = []
-    data.forEach((b) => QrSegment.appendBits(b, 8, bb))
-    return new QrSegment(QrSegment.Mode.BYTE, data.length, bb)
+    const bits: number[] = []
+    data.forEach((b) => QrSegment.appendBits(b, 8, bits))
+    return new QrSegment(QrSegment.Mode.BYTE, data.length, bits)
   }
 
   static makeSegments(text: string) {
@@ -31,17 +38,17 @@ class QrSegment {
   static getTotalBits(segs: QrSegment[], version: number) {
     let result = 0
     for (const seg of segs) {
-      const ccbits = seg.numCharsBits(version)
+      const ccbits = seg.mode.numCharCountBits[QrSegment.getModeBitsIndex(version)]
       if (seg.numChars >= (1 << ccbits)) return null
-      result += 4 + ccbits + seg.data.length
+      result += 4 + ccbits + seg.bitData.length
     }
     return result
   }
 
-  numCharsBits(version: number) {
-    if (1 <= version && version <= 9) return [10, 9, 8, 8][this.mode >> 1]
-    if (10 <= version && version <= 26) return [12, 11, 16, 10][this.mode >> 1]
-    return [14, 13, 16, 12][this.mode >> 1]
+  private static getModeBitsIndex(version: number) {
+    if (1 <= version && version <= 9) return 0
+    if (10 <= version && version <= 26) return 1
+    return 2
   }
 
   private static appendBits(val: number, len: number, bb: number[]) {
@@ -172,9 +179,13 @@ class QrCode {
 
     const bb: number[] = []
     segs.forEach((seg) => {
-      QrCode.appendBits(seg.mode, 4, bb)
-      QrCode.appendBits(seg.numChars, seg.numCharsBits(version), bb)
-      seg.data.forEach((bit) => bb.push(bit))
+      QrCode.appendBits(seg.mode.modeBits, 4, bb)
+      QrCode.appendBits(
+        seg.numChars,
+        seg.mode.numCharCountBits[QrSegment.getModeBitsIndex(version)],
+        bb,
+      )
+      seg.bitData.forEach((bit) => bb.push(bit))
     })
     const dataCapacityBits = QrCode.getNumDataCodewords(version, ecc) * 8
     QrCode.appendBits(0, Math.min(4, dataCapacityBits - bb.length), bb)
@@ -208,27 +219,36 @@ class QrCode {
   private static drawFormatBits(modules: QrModule[][], isFunction: boolean[][], ecc: number, mask: number) {
     const size = modules.length
     const format = QrCode.getFormatBits(ecc, mask)
-    for (let i = 0; i <= 5; i += 1) QrCode.setFormatBit(modules, isFunction, 8, i, format)
-    QrCode.setFormatBit(modules, isFunction, 8, 7, format)
-    QrCode.setFormatBit(modules, isFunction, 8, 8, format)
-    QrCode.setFormatBit(modules, isFunction, 7, 8, format)
-    for (let i = 9; i < 15; i += 1) QrCode.setFormatBit(modules, isFunction, 14 - i, 8, format)
-    for (let i = 0; i < 8; i += 1) QrCode.setFormatBit(modules, isFunction, size - 1 - i, 8, format)
-    for (let i = 8; i < 15; i += 1) QrCode.setFormatBit(modules, isFunction, 8, size - 15 + i, format)
-    QrCode.setFormatBit(modules, isFunction, 8, size - 8, format)
+    for (let i = 0; i <= 5; i += 1) QrCode.setFormatBit(modules, isFunction, 8, i, format, i)
+    QrCode.setFormatBit(modules, isFunction, 8, 7, format, 6)
+    QrCode.setFormatBit(modules, isFunction, 8, 8, format, 7)
+    QrCode.setFormatBit(modules, isFunction, 7, 8, format, 8)
+    for (let i = 9; i < 15; i += 1) QrCode.setFormatBit(modules, isFunction, 14 - i, 8, format, i)
+    for (let i = 0; i < 8; i += 1)
+      QrCode.setFormatBit(modules, isFunction, size - 1 - i, 8, format, i)
+    for (let i = 8; i < 15; i += 1)
+      QrCode.setFormatBit(modules, isFunction, 8, size - 15 + i, format, i)
+    QrCode.setFormatBit(modules, isFunction, 8, size - 8, format, 14)
   }
 
-  private static setFormatBit(modules: QrModule[][], isFunction: boolean[][], x: number, y: number, format: number) {
-    modules[y][x] = ((format >>> 0) & 1) !== 0
+  private static setFormatBit(
+    modules: QrModule[][],
+    isFunction: boolean[][],
+    x: number,
+    y: number,
+    format: number,
+    bitIndex: number,
+  ) {
+    modules[y][x] = ((format >>> bitIndex) & 1) !== 0
     isFunction[y][x] = true
   }
 
   private static getFormatBits(ecc: number, mask: number) {
-    const data = ((ecc << 3) | mask) & 0x1f
-    let rem = data << 10
-    const gen = 0x537
-    for (let i = 0; i < 5; i += 1) {
-      if (((rem >>> (14 - i)) & 1) !== 0) rem ^= gen << (4 - i)
+    const eccFormatBits = [1, 0, 3, 2][ecc] ?? 0
+    let data = ((eccFormatBits << 3) | mask) & 0x1f
+    let rem = data
+    for (let i = 0; i < 10; i += 1) {
+      rem = (rem << 1) ^ (((rem >>> 9) & 1) !== 0 ? 0x537 : 0)
     }
     return ((data << 10) | rem) ^ 0x5412
   }
@@ -338,8 +358,9 @@ class QrCode {
   }
 
   private static addEccAndInterleave(data: number[], version: number, ecc: number) {
-    const numBlocks = QrCode.NUM_ERROR_CORRECTION_BLOCKS[ecc][version]
-    const blockEccLen = QrCode.ERROR_CORRECTION_CODEWORDS_PER_BLOCK[ecc][version]
+    const eccIndex = ecc + 1
+    const numBlocks = QrCode.NUM_ERROR_CORRECTION_BLOCKS[eccIndex][version]
+    const blockEccLen = QrCode.ERROR_CORRECTION_CODEWORDS_PER_BLOCK[eccIndex][version]
     const rawCodewords = QrCode.getNumRawDataModules(version) / 8
     const numShortBlocks = numBlocks - (rawCodewords % numBlocks)
     const shortBlockLen = Math.floor(rawCodewords / numBlocks)
@@ -412,9 +433,10 @@ class QrCode {
   }
 
   private static getNumEccCodewords(version: number, ecc: number) {
+    const eccIndex = ecc + 1
     return (
-      QrCode.ERROR_CORRECTION_CODEWORDS_PER_BLOCK[ecc][version] *
-      QrCode.NUM_ERROR_CORRECTION_BLOCKS[ecc][version]
+      QrCode.ERROR_CORRECTION_CODEWORDS_PER_BLOCK[eccIndex][version] *
+      QrCode.NUM_ERROR_CORRECTION_BLOCKS[eccIndex][version]
     )
   }
 
@@ -506,7 +528,13 @@ export default function QRCode({
   }
 
   return (
-    <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} shapeRendering="crispEdges">
+    <svg
+      viewBox={`0 0 ${size} ${size}`}
+      width="100%"
+      height="100%"
+      preserveAspectRatio="xMidYMid meet"
+      shapeRendering="crispEdges"
+    >
       {rects}
     </svg>
   )

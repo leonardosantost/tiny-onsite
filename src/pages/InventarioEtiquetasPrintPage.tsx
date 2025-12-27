@@ -151,8 +151,8 @@ export default function InventarioEtiquetasPrintPage() {
           margin-bottom: -0.05cm;
         }
         .qr {
-          width: 1.6cm;
-          height: 1.6cm;
+          width: 2.6cm;
+          height: 2.6cm;
           order: -1;
           margin-bottom: 0.15cm;
         }
@@ -262,7 +262,7 @@ export default function InventarioEtiquetasPrintPage() {
               <div className="top">
                 <div className="top-content">
                   <div className="qr">
-                    <QRCode value={label.sku} size={72} quietZone={0} />
+                    <QRCode value={label.sku || label.code} size={180} quietZone={0} ecc={0} />
                   </div>
                   <div className="title">{parsed.baseTitle}</div>
                   <div className="variation-grid">
