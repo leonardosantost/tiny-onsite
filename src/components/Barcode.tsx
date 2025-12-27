@@ -147,22 +147,33 @@ function barcodeBars(value: string) {
   return { bars, width: Math.max(x, 1) }
 }
 
-export default function Barcode({ value }: { value: string }) {
+export default function Barcode({
+  value,
+  height = 48,
+  minBarWidth = 1,
+}: {
+  value: string
+  height?: number
+  minBarWidth?: number
+}) {
   const { bars, width } = barcodeBars(value)
-  const scale = 100 / Math.max(width, 1)
+  const adjustedScale = minBarWidth / Math.max(1, Math.min(...bars.map((bar) => bar.width)))
+  const totalWidth = width * adjustedScale
+  const viewWidth = Math.max(100, totalWidth)
   return (
     <svg
-      viewBox="0 0 100 48"
+      viewBox={`0 0 ${viewWidth} ${height}`}
       preserveAspectRatio="none"
-      className="h-12 w-full border border-black/10 bg-white"
+      className="w-full bg-white"
+      style={{ height }}
     >
       {bars.map((bar, index) => (
         <rect
           key={index}
-          x={bar.x * scale}
+          x={bar.x * adjustedScale}
           y={0}
-          width={bar.width * scale}
-          height={48}
+          width={bar.width * adjustedScale}
+          height={height}
           fill="#111"
         />
       ))}
