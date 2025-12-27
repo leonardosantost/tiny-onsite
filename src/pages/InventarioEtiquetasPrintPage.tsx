@@ -108,7 +108,10 @@ export default function InventarioEtiquetasPrintPage() {
           margin-top: 0;
           width: 100%;
           box-sizing: border-box;
-          padding: 0 0.2cm;
+          padding: 0 0.05cm;
+        }
+        .barcode svg {
+          border: none;
         }
         .barcode-text {
           margin-top: 0;
