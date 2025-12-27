@@ -147,6 +147,9 @@ export default function InventarioEtiquetasPrintPage() {
           align-items: flex-start;
           text-align: left;
         }
+        .title {
+          margin-bottom: -0.05cm;
+        }
         .qr {
           width: 1.6cm;
           height: 1.6cm;

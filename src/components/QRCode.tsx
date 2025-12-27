@@ -507,7 +507,6 @@ export default function QRCode({
 
   return (
     <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} shapeRendering="crispEdges">
-      <rect width={size} height={size} fill="#fff" />
       {rects}
     </svg>
   )
