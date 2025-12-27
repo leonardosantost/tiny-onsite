@@ -25,14 +25,17 @@ class QrCode {
     let minVersion = 1
     let maxVersion = 10
     let version = 1
-    let dataUsedBits = 0
+    let dataUsedBits: number | null = 0
     for (version = minVersion; version <= maxVersion; version += 1) {
       const dataCapacityBits = QrCode.getNumDataCodewords(version, ecc) * 8
       dataUsedBits = QrSegment.getTotalBits(segments, version)
       if (dataUsedBits != null && dataUsedBits <= dataCapacityBits) break
     }
+    if (dataUsedBits == null) {
+      throw new Error('QR payload too large')
+    }
 
-    const bb = []
+    const bb: number[] = []
     segments.forEach((seg) => {
       QrCode.appendBits(seg.mode, 4, bb)
       QrCode.appendBits(seg.numChars, seg.numCharsBits(version), bb)
@@ -286,7 +289,7 @@ class QrSegment {
   }
 
   static makeBytes(data: number[]) {
-    const bb = []
+    const bb: number[] = []
     data.forEach((b) => QrSegment.appendBits(b, 8, bb))
     return new QrSegment(QrSegment.MODE_BYTE, data.length, bb)
   }

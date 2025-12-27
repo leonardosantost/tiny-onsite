@@ -34,6 +34,15 @@ type StockData = {
   depositos: StockDeposit[]
 }
 
+type LabelPayload = {
+  title: string
+  variation: string
+  location: string
+  code: string
+  codeLabel: string
+  sku: string
+}
+
 const DEFAULT_LIMIT = 100
 
 export default function InventarioEtiquetasPage() {
@@ -215,13 +224,7 @@ export default function InventarioEtiquetasPage() {
       return
     }
 
-    const labels: Array<{
-      title: string
-      variation: string
-      location: string
-      code: string
-      codeLabel: string
-    }> = []
+    const labels: LabelPayload[] = []
 
     if (hasSelectedDeposits && stock?.depositos?.length) {
       stock.depositos.forEach((deposito, index) => {
