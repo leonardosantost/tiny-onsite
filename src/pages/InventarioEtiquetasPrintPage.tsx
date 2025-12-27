@@ -39,8 +39,12 @@ export default function InventarioEtiquetasPrintPage() {
       <style>
         {`
         @page {
-          size: 20cm 29.7cm;
+          size: 10cm 9.9cm;
           margin: 0;
+        }
+        html, body {
+          width: 10cm;
+          height: 9.9cm;
         }
         body {
           margin: 0;
@@ -53,10 +57,11 @@ export default function InventarioEtiquetasPrintPage() {
           border-bottom: 1px solid #ddd;
         }
         .sheet {
-          width: 20cm;
+          width: 10cm;
+          height: 9.9cm;
           margin: 0 auto;
           display: grid;
-          grid-template-columns: repeat(2, 10cm);
+          grid-template-columns: repeat(2, 5cm);
           grid-auto-rows: 9.9cm;
         }
         .label {
@@ -67,6 +72,7 @@ export default function InventarioEtiquetasPrintPage() {
           gap: 6px;
           align-items: center;
           text-align: center;
+          height: 9.9cm;
         }
         .content {
           flex: 1;
