@@ -209,6 +209,7 @@ export default function InventarioEtiquetasPage() {
     }
 
     const codeValue = selectedProduct.gtin || selectedProduct.sku || selectedProduct.codigo || ''
+    const skuValue = selectedProduct.sku || selectedProduct.codigo || codeValue
     if (!codeValue) {
       setPrintError('Produto sem SKU/GTIN para gerar etiqueta.')
       return
@@ -234,6 +235,7 @@ export default function InventarioEtiquetasPage() {
             location: deposito.nome ?? '-',
             code: codeValue,
             codeLabel: selectedProduct.gtin ? 'GTIN' : 'SKU',
+            sku: skuValue,
           })
         }
       })
@@ -250,6 +252,7 @@ export default function InventarioEtiquetasPage() {
           location: manualLocation || '-',
           code: codeValue,
           codeLabel: selectedProduct.gtin ? 'GTIN' : 'SKU',
+          sku: skuValue,
         })
       }
     }

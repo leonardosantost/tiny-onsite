@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import Barcode from '../components/Barcode'
+import QRCode from '../components/QRCode'
 
 type LabelPayload = {
   title: string
@@ -7,6 +8,7 @@ type LabelPayload = {
   location: string
   code: string
   codeLabel: string
+  sku: string
 }
 
 type ParsedTitle = {
@@ -145,6 +147,10 @@ export default function InventarioEtiquetasPrintPage() {
           align-items: flex-start;
           text-align: left;
         }
+        .qr {
+          width: 1.1cm;
+          height: 1.1cm;
+        }
         .title {
           font-size: 13px;
           font-weight: 700;
@@ -250,6 +256,9 @@ export default function InventarioEtiquetasPrintPage() {
             <div key={`${label.code}-${index}`} className="label">
               <div className="top">
                 <div className="top-content">
+                  <div className="qr">
+                    <QRCode value={label.sku} size={44} />
+                  </div>
                   <div className="title">{parsed.baseTitle}</div>
                   <div className="variation-grid">
                     <div>
