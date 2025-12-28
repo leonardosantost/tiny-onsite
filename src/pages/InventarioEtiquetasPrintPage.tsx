@@ -154,20 +154,26 @@ export default function InventarioEtiquetasPrintPage() {
           gap: 0.25cm;
         }
         .qr-top img {
-          width: 1.6cm;
-          height: 1.6cm;
-        }
-        .qr-logo {
           width: 1.2cm;
           height: 1.2cm;
+        }
+        .qr-logo {
+          width: 0.9cm;
+          height: 0.9cm;
           object-fit: contain;
         }
         .header {
           display: flex;
+          flex-direction: row;
+          gap: 0.16cm;
+          min-height: 0;
+        }
+        .header-main {
+          flex: 1;
+          display: flex;
           flex-direction: column;
           gap: 0.16cm;
-          flex: 1;
-          min-height: 0;
+          min-width: 0;
         }
         .title {
           font-size: 13px;
@@ -186,8 +192,11 @@ export default function InventarioEtiquetasPrintPage() {
           color: #333;
           font-weight: 700;
           display: flex;
-          gap: 0.25cm;
-          flex-wrap: wrap;
+          flex-direction: column;
+          align-items: flex-end;
+          gap: 0.12cm;
+          text-align: right;
+          min-width: 1.2cm;
         }
         .variation-grid {
           display: grid;
@@ -334,28 +343,30 @@ export default function InventarioEtiquetasPrintPage() {
                   <img src="/LOGO ICON QD.png" alt="Logo" className="qr-logo" />
                 </div>
                 <div className="header">
-                  <div className="title">{parsedTitle.baseTitle}</div>
-                  <div className="variation-grid">
-                    <div>
-                      <div className="variation-label">Tamanho</div>
-                      <div className="variation-size">{sizeText}</div>
+                  <div className="header-main">
+                    <div className="title">{parsedTitle.baseTitle}</div>
+                    <div className="variation-grid">
+                      <div>
+                        <div className="variation-label">Tamanho</div>
+                        <div className="variation-size">{sizeText}</div>
+                      </div>
+                      <div>
+                        <div className="variation-label">Variações</div>
+                        <div className="variation-value">{variationText}</div>
+                      </div>
                     </div>
+                    {label.gtin ? <div className="sku-line">SKU {label.sku ?? '-'}</div> : null}
                     <div>
-                      <div className="variation-label">Variações</div>
-                      <div className="variation-value">{variationText}</div>
+                      <div className="barcode">
+                        <Barcode value={label.code} height={40} minBarWidth={2} />
+                      </div>
+                      <div className="barcode-text">{label.code}</div>
                     </div>
                   </div>
                   <div className="meta-line">
                     <span>{label.brand ?? '-'}</span>
                     <span>{label.location ?? '-'}</span>
                     <span>{label.entryDate ?? '-'}</span>
-                  </div>
-                  {label.gtin ? <div className="sku-line">SKU {label.sku ?? '-'}</div> : null}
-                  <div>
-                    <div className="barcode">
-                      <Barcode value={label.code} height={40} minBarWidth={2} />
-                    </div>
-                    <div className="barcode-text">{label.code}</div>
                   </div>
                 </div>
               </div>
