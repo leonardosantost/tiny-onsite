@@ -83,13 +83,13 @@ export default function InventarioEtiquetasPrintPage() {
     const remaining: string[] = []
     for (const entry of variations) {
       const normalized = entry.toUpperCase()
-      const hyphenParts = normalized.split('-').filter(Boolean)
-      const isHyphenSize =
-        hyphenParts.length > 1 &&
-        hyphenParts.every((part) => sizeCandidates.includes(part) || /^[0-9]{1,3}$/.test(part))
+      const compoundParts = normalized.split(/[-/]/).filter(Boolean)
+      const isCompoundSize =
+        compoundParts.length > 1 &&
+        compoundParts.every((part) => sizeCandidates.includes(part) || /^[0-9]{1,3}$/.test(part))
       if (
         !size &&
-        (sizeCandidates.includes(normalized) || /^[0-9]{1,3}$/.test(normalized) || isHyphenSize)
+        (sizeCandidates.includes(normalized) || /^[0-9]{1,3}$/.test(normalized) || isCompoundSize)
       ) {
         size = entry
         continue
@@ -382,7 +382,7 @@ export default function InventarioEtiquetasPrintPage() {
                       {label.gtin ? <div className="sku-line">SKU {label.sku ?? '-'}</div> : null}
                       <div>
                         <div className="barcode">
-                          <Barcode value={label.code} height={40} minBarWidth={2} />
+                        <Barcode value={label.code} height={36} minBarWidth={2} />
                         </div>
                         <div className="barcode-text">{label.code}</div>
                       </div>
