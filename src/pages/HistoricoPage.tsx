@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import LoadingOverlay from '../components/LoadingOverlay'
 import { tinyAccountId, supabaseUrl } from '../config'
 import { tinyFetch } from '../lib/tinyFetch'
+import { extractTinyProductEntries, getTinyProductSku, getTinyProductThumb } from '../lib/tinyProducts'
 import { formatCutoffDisplay, formatOrderDate } from '../utils/date'
 import { getOrderStatus, getCutoff, isPaidAndAuthorized, sortOrders } from '../utils/orders'
 
@@ -92,18 +93,18 @@ export default function HistoricoPage() {
           throw new Error('Resposta inesperada da API de pedidos.')
         }
 
-        const inventoryItems = Array.isArray(inventoryData?.results) ? inventoryData.results : []
+        const inventoryItems = extractTinyProductEntries(inventoryData)
         const thumbByItemId = new Map<string, string>()
         const thumbBySku = new Map<string, string>()
         for (const item of inventoryItems) {
-          const thumb =
-            item?.thumbnail || item?.pictures?.[0]?.secure_url || item?.pictures?.[0]?.url || null
+          const thumb = getTinyProductThumb(item)
           if (!thumb) continue
           if (item?.id) {
             thumbByItemId.set(String(item.id), thumb)
           }
-          if (item?.seller_sku) {
-            thumbBySku.set(String(item.seller_sku), thumb)
+          const sku = getTinyProductSku(item)
+          if (sku) {
+            thumbBySku.set(String(sku), thumb)
           }
         }
 

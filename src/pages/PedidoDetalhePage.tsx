@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import LoadingOverlay from '../components/LoadingOverlay'
 import { tinyAccountId, supabaseUrl } from '../config'
 import { tinyFetch } from '../lib/tinyFetch'
+import { extractTinyProductEntries, getTinyProductSku, getTinyProductThumb } from '../lib/tinyProducts'
 import { formatCutoffDisplay, formatOrderDate } from '../utils/date'
 import { getCutoff, isShipped } from '../utils/orders'
 
@@ -55,7 +56,7 @@ export default function PedidoDetalhePage() {
           )
           if (inventoryResponse.ok) {
             const inventoryData = await inventoryResponse.json()
-            setInventoryItems(Array.isArray(inventoryData?.results) ? inventoryData.results : [])
+            setInventoryItems(extractTinyProductEntries(inventoryData))
           }
         } catch {
           setInventoryItems([])
@@ -104,14 +105,14 @@ export default function PedidoDetalhePage() {
   const thumbByItemId = useMemo(() => {
     const map = new Map<string, string>()
     for (const item of inventoryItems) {
-      const thumb =
-        item?.thumbnail || item?.pictures?.[0]?.secure_url || item?.pictures?.[0]?.url || null
+      const thumb = getTinyProductThumb(item)
       if (!thumb) continue
       if (item?.id) {
         map.set(String(item.id), thumb)
       }
-      if (item?.seller_sku) {
-        map.set(String(item.seller_sku), thumb)
+      const sku = getTinyProductSku(item)
+      if (sku) {
+        map.set(String(sku), thumb)
       }
     }
     return map

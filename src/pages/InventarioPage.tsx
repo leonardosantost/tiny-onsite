@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { tinyAccountId, supabaseUrl } from '../config'
 import LoadingOverlay from '../components/LoadingOverlay'
 import { tinyFetch } from '../lib/tinyFetch'
+import { extractTinyProductEntries, getTinyProductSku, getTinyProductTitle, normalizeTinyPaging } from '../lib/tinyProducts'
 
 type InventoryItem = {
   id: string | null
@@ -66,17 +67,22 @@ export default function InventarioPage() {
           throw new Error(`Erro ao carregar inventário: ${response.status}`)
         }
         const data = await response.json()
-        const results = Array.isArray(data?.results) ? data.results : []
-        setItems(results)
-        if (data?.paging) {
-          setPaging({
-            limit: Number(data.paging.limit ?? DEFAULT_LIMIT),
-            offset: Number(data.paging.offset ?? offset),
-            total: Number(data.paging.total ?? results.length),
-          })
-        } else {
-          setPaging({ limit: DEFAULT_LIMIT, offset, total: results.length })
-        }
+        const entries = extractTinyProductEntries(data)
+        const normalized = entries.map((entry) => ({
+          id: entry?.id != null ? String(entry.id) : null,
+          nome: getTinyProductTitle(entry),
+          codigo: entry?.codigo != null ? String(entry.codigo) : null,
+          sku: getTinyProductSku(entry),
+          unidade: entry?.unidade != null ? String(entry.unidade) : null,
+        }))
+        setItems(normalized)
+        setPaging(
+          normalizeTinyPaging(data, {
+            limit: DEFAULT_LIMIT,
+            offset,
+            total: normalized.length,
+          }),
+        )
       } catch (err) {
         if (!(err instanceof DOMException && err.name === 'AbortError')) {
           setError(err instanceof Error ? err.message : 'Falha ao carregar inventário.')

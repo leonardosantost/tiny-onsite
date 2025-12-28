@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import LoadingOverlay from '../components/LoadingOverlay'
 import { tinyAccountId, supabaseUrl } from '../config'
 import { tinyFetch } from '../lib/tinyFetch'
+import { extractTinyProductEntries, getTinyProductCodes, getTinyProductSku } from '../lib/tinyProducts'
 
 const bins = ['A1', 'A2', 'A3']
 
@@ -33,37 +34,24 @@ export default function ReceberPage() {
 
   const resolveSkuFromInventory = async (code: string) => {
     if (!supabaseUrl) return code
-    const response = await tinyFetch(
-      `${supabaseUrl}/functions/v1/tiny-inventory?account_id=${tinyAccountId}&details=1`,
-    )
+    const normalized = code.trim()
+    const searchBy = /^[0-9]+$/.test(normalized) ? 'gtin' : 'sku'
+    const params = new URLSearchParams({
+      account_id: tinyAccountId,
+      search: normalized,
+      search_by: searchBy,
+      limit: '1',
+      offset: '0',
+    })
+    const response = await tinyFetch(`${supabaseUrl}/functions/v1/tiny-inventory?${params.toString()}`)
     if (!response.ok) return code
     const data = await response.json()
-    const items = Array.isArray(data?.results) ? data.results : []
-    const normalized = code.trim().toLowerCase()
-    for (const itemEntry of items) {
-      const attrs = Array.isArray(itemEntry?.attributes) ? itemEntry.attributes : []
-      const attrSku = attrs.find((attr: any) => attr?.id === 'SELLER_SKU')
-      const attrGtin =
-        attrs.find((attr: any) => attr?.id === 'GTIN') || attrs.find((attr: any) => attr?.id === 'EAN')
-      const codes = [
-        attrSku?.value_name,
-        itemEntry?.seller_sku,
-        itemEntry?.seller_custom_field,
-        itemEntry?.id,
-        attrGtin?.value_name,
-      ]
-        .filter(Boolean)
-        .flatMap((value) => String(value).split(','))
-        .map((value) => value.trim().toLowerCase())
-      if (codes.includes(normalized)) {
-        return (
-          attrSku?.value_name ||
-          itemEntry?.seller_sku ||
-          itemEntry?.seller_custom_field ||
-          itemEntry?.id ||
-          code
-        )
-      }
+    const items = extractTinyProductEntries(data)
+    const itemEntry = items[0]
+    if (!itemEntry) return code
+    const codes = getTinyProductCodes(itemEntry).map((value) => value.toLowerCase())
+    if (codes.includes(normalized.toLowerCase())) {
+      return getTinyProductSku(itemEntry) ?? code
     }
     return code
   }

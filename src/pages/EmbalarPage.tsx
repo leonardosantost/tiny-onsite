@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import LoadingOverlay from '../components/LoadingOverlay'
 import { tinyAccountId, supabaseUrl } from '../config'
 import { tinyFetch } from '../lib/tinyFetch'
+import { extractTinyProductEntries, getTinyProductGtin, getTinyProductSku, getTinyProductThumb } from '../lib/tinyProducts'
 import { formatCutoffDisplay } from '../utils/date'
 
 export default function EmbalarPage() {
@@ -107,37 +108,27 @@ export default function EmbalarPage() {
         )
         if (inventoryResponse.ok) {
           const inventoryData = await inventoryResponse.json()
-          const inventoryItems = Array.isArray(inventoryData?.results) ? inventoryData.results : []
+          const inventoryItems = extractTinyProductEntries(inventoryData)
           const map: Record<string, string> = {}
           const gtinMap: Record<string, string> = {}
           for (const item of inventoryItems) {
-            const thumb =
-              item?.thumbnail || item?.pictures?.[0]?.secure_url || item?.pictures?.[0]?.url || null
+            const thumb = getTinyProductThumb(item)
             if (!thumb) continue
             if (item?.id) {
               map[String(item.id)] = thumb
             }
-            if (item?.seller_sku) {
-              map[String(item.seller_sku)] = thumb
+            const sku = getTinyProductSku(item)
+            if (sku) {
+              map[String(sku)] = thumb
             }
-            const attrs = Array.isArray(item?.attributes) ? item.attributes : []
-            const attrSku = attrs.find((attr: any) => attr?.id === 'SELLER_SKU')
-            if (attrSku?.value_name) {
-              map[String(attrSku.value_name)] = thumb
-            }
-            const attrGtin =
-              attrs.find((attr: any) => attr?.id === 'GTIN') ||
-              attrs.find((attr: any) => attr?.id === 'EAN')
-            if (attrGtin?.value_name) {
-              const value = String(attrGtin.value_name)
+            const gtinValue = getTinyProductGtin(item)
+            if (gtinValue) {
+              const value = String(gtinValue)
               if (item?.id) {
                 gtinMap[String(item.id)] = value
               }
-              if (item?.seller_sku) {
-                gtinMap[String(item.seller_sku)] = value
-              }
-              if (attrSku?.value_name) {
-                gtinMap[String(attrSku.value_name)] = value
+              if (sku) {
+                gtinMap[String(sku)] = value
               }
             }
           }

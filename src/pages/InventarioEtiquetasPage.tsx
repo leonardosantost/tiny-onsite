@@ -1,23 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import LoadingOverlay from '../components/LoadingOverlay'
 import { tinyAccountId, supabaseUrl } from '../config'
 import { tinyFetch } from '../lib/tinyFetch'
+import { extractTinyProductEntries, getTinyProductGtin, getTinyProductSku, getTinyProductTitle } from '../lib/tinyProducts'
 
-type ProductListItem = {
-  id: string | null
-  nome: string | null
-  codigo: string | null
-  sku: string | null
-  unidade: string | null
-  gtin?: string | null
-  variacao?: string | null
-}
-
-type Paging = {
-  limit: number
-  offset: number
-  total: number
-}
+type ProductDetail = Record<string, any>
 
 type StockDeposit = {
   nome: string
@@ -34,105 +21,23 @@ type StockData = {
   depositos: StockDeposit[]
 }
 
-const DEFAULT_LIMIT = 100
-
 export default function InventarioEtiquetasPage() {
   const [searchTerm, setSearchTerm] = useState('')
-  const [committedSearch, setCommittedSearch] = useState('')
-  const [searchBy, setSearchBy] = useState<'auto' | 'sku' | 'gtin' | 'titulo'>('auto')
-  const [items, setItems] = useState<ProductListItem[]>([])
-  const [paging, setPaging] = useState<Paging | null>(null)
-  const [offset, setOffset] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [selectedProduct, setSelectedProduct] = useState<ProductListItem | null>(null)
+  const [selectedProduct, setSelectedProduct] = useState<ProductDetail | null>(null)
+  const [parentSlug, setParentSlug] = useState<string | null>(null)
   const [stock, setStock] = useState<StockData | null>(null)
   const [stockLoading, setStockLoading] = useState(false)
   const [manualQuantity, setManualQuantity] = useState(1)
-  const [manualLocation, setManualLocation] = useState('')
-  const [depositSelections, setDepositSelections] = useState<Record<number, { checked: boolean; quantity: number }>>(
-    {},
-  )
+  const [selectedDeposit, setSelectedDeposit] = useState('')
+  const [includePrice, setIncludePrice] = useState(true)
+  const [includeInstallments, setIncludeInstallments] = useState(true)
+  const [useStockQuantity, setUseStockQuantity] = useState(false)
   const [printError, setPrintError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!supabaseUrl) {
-      setError('VITE_SUPABASE_URL não configurado.')
-      return
-    }
-
-    const controller = new AbortController()
-
-    const load = async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const params = new URLSearchParams({
-          account_id: tinyAccountId,
-          mode: 'list',
-          limit: String(DEFAULT_LIMIT),
-          offset: String(offset),
-        })
-        if (committedSearch) {
-          params.set('search', committedSearch)
-          if (searchBy !== 'auto') {
-            params.set('search_by', searchBy)
-          }
-        }
-        const response = await tinyFetch(`${supabaseUrl}/functions/v1/tiny-inventory?${params.toString()}`, {
-          signal: controller.signal,
-        })
-        if (!response.ok) {
-          throw new Error(`Erro ao carregar produtos: ${response.status}`)
-        }
-        const data = await response.json()
-        const results = Array.isArray(data?.results) ? data.results : []
-        const normalized = results.map((entry: any) => {
-          const attrs = Array.isArray(entry?.attributes) ? entry.attributes : []
-          const gtinAttr =
-            attrs.find((attr: any) => attr?.id === 'GTIN') ||
-            attrs.find((attr: any) => attr?.id === 'EAN')
-          const skuAttr = attrs.find((attr: any) => attr?.id === 'SELLER_SKU')
-
-          return {
-            id: entry?.id != null ? String(entry.id) : null,
-            nome: entry?.nome ?? entry?.title ?? entry?.descricao ?? null,
-            codigo: entry?.codigo ?? entry?.seller_custom_field ?? entry?.seller_sku ?? entry?.sku ?? null,
-            sku: entry?.sku ?? entry?.seller_sku ?? skuAttr?.value_name ?? null,
-            unidade: entry?.unidade ?? null,
-            gtin: entry?.gtin ?? gtinAttr?.value_name ?? null,
-            variacao: entry?.variacao ?? entry?.tipoVariacao ?? null,
-          } as ProductListItem
-        })
-        setItems(normalized)
-        if (data?.paging) {
-          setPaging({
-            limit: Number(data.paging.limit ?? DEFAULT_LIMIT),
-            offset: Number(data.paging.offset ?? offset),
-            total: Number(data.paging.total ?? results.length),
-          })
-        } else {
-          setPaging({ limit: DEFAULT_LIMIT, offset, total: results.length })
-        }
-      } catch (err) {
-        if (!(err instanceof DOMException && err.name === 'AbortError')) {
-          setError(err instanceof Error ? err.message : 'Falha ao carregar produtos.')
-        }
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    load()
-
-    return () => controller.abort()
-  }, [committedSearch, offset, searchBy])
-
-  const total = paging?.total ?? items.length
-  const limit = paging?.limit ?? DEFAULT_LIMIT
-  const currentPage = Math.floor((paging?.offset ?? offset) / limit) + 1
-  const totalPages = Math.max(1, Math.ceil(total / limit))
+  const [priceListPrice, setPriceListPrice] = useState<number | string | null>(null)
+  const [priceListLoading, setPriceListLoading] = useState(false)
 
   const parseStock = (payload: any): StockData | null => {
     const product = payload?.retorno?.produto ?? payload?.produto ?? payload ?? null
@@ -156,102 +61,268 @@ export default function InventarioEtiquetasPage() {
     }
   }
 
-  const handleSelectProduct = async (product: ProductListItem) => {
-    if (!supabaseUrl || !product?.id) return
-    setSelectedProduct(product)
+  const resolveSearchBy = (value: string) => {
+    const trimmed = value.trim()
+    if (/^[0-9]+$/.test(trimmed)) return 'gtin'
+    return 'sku'
+  }
+
+  const resolvePriceFromList = useCallback(async (product: ProductDetail) => {
+    if (!supabaseUrl || !product?.id) return null
+    const params = new URLSearchParams({
+      account_id: tinyAccountId,
+      mode: 'price-list',
+      price_list_id: '272',
+    })
+    const response = await tinyFetch(`${supabaseUrl}/functions/v1/tiny-inventory?${params.toString()}`)
+    if (!response.ok) {
+      throw new Error(`Erro ao buscar lista de preços: ${response.status}`)
+    }
+    const data = await response.json()
+    const rawExceptions = data?.excecoes ?? []
+    const exceptions = Array.isArray(rawExceptions) ? rawExceptions : [rawExceptions]
+    const skuValue = product?.sku ?? product?.codigo ?? getTinyProductSku(product) ?? null
+    const normalizedSku = skuValue ? String(skuValue).trim().toLowerCase() : ''
+    const match = exceptions.find(
+      (entry: any) =>
+        (product?.id != null && Number(entry?.idProduto) === Number(product.id)) ||
+        (normalizedSku &&
+          String(entry?.codigo ?? '')
+            .trim()
+            .toLowerCase() === normalizedSku),
+    )
+    if (!match) return null
+    const promo = Number(match?.precoPromocional ?? 0)
+    if (Number.isFinite(promo) && promo > 0) return promo
+    const price = match?.preco ?? null
+    return price != null ? Number(price) : null
+  }, [supabaseUrl])
+
+  const getPrintDateCode = () => {
+    const now = new Date()
+    const day = String(now.getDate()).padStart(2, '0')
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const year = String(now.getFullYear()).slice(-2)
+    return `${day}${month}${year}`
+  }
+
+  const handleSearchSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!supabaseUrl) return
+    const trimmed = searchTerm.trim()
+    if (!trimmed) {
+      setError('Informe um SKU ou GTIN para buscar.')
+      return
+    }
+    setLoading(true)
+    setError(null)
+    setSelectedProduct(null)
     setStock(null)
     setPrintError(null)
-    setDepositSelections({})
     setManualQuantity(1)
-    setManualLocation('')
+    setParentSlug(null)
+    setPriceListPrice(null)
     setStockLoading(true)
     try {
-      const response = await tinyFetch(
-        `${supabaseUrl}/functions/v1/tiny-inventory?account_id=${tinyAccountId}&mode=stock&product_id=${product.id}`,
+      const params = new URLSearchParams({
+        account_id: tinyAccountId,
+        search: trimmed,
+        search_by: resolveSearchBy(trimmed),
+        limit: '1',
+        offset: '0',
+      })
+      const listResponse = await tinyFetch(
+        `${supabaseUrl}/functions/v1/tiny-inventory?${params.toString()}`,
+      )
+      if (!listResponse.ok) {
+        throw new Error(`Erro ao buscar produto: ${listResponse.status}`)
+      }
+      const listData = await listResponse.json()
+      const entries = extractTinyProductEntries(listData)
+      const first = entries[0]
+      if (!first?.id) {
+        throw new Error('Produto não encontrado.')
+      }
+      const productResponse = await tinyFetch(
+        `${supabaseUrl}/functions/v1/tiny-inventory?account_id=${tinyAccountId}&product_id=${first.id}`,
+      )
+      if (!productResponse.ok) {
+        throw new Error(`Erro ao buscar detalhes do produto: ${productResponse.status}`)
+      }
+      const productData = await productResponse.json()
+      setSelectedProduct(productData)
+      const parentId = productData?.produtoPai?.id
+      if (parentId && !productData?.seo?.slug) {
+        try {
+          const parentResponse = await tinyFetch(
+            `${supabaseUrl}/functions/v1/tiny-inventory?account_id=${tinyAccountId}&product_id=${parentId}`,
+          )
+          if (parentResponse.ok) {
+            const parentData = await parentResponse.json()
+            const slug = parentData?.seo?.slug ? String(parentData.seo.slug) : null
+            setParentSlug(slug)
+          }
+        } catch {
+          setParentSlug(null)
+        }
+      } else {
+        setParentSlug(null)
+      }
+      const stockResponse = await tinyFetch(
+        `${supabaseUrl}/functions/v1/tiny-inventory?account_id=${tinyAccountId}&mode=stock&product_id=${first.id}`,
         { cache: 'no-store' },
       )
-      if (!response.ok) {
-        throw new Error(`Erro ao buscar estoque: ${response.status}`)
+      if (!stockResponse.ok) {
+        throw new Error(`Erro ao buscar estoque: ${stockResponse.status}`)
       }
-      const payload = await response.json()
-      const parsed = parseStock(payload)
+      const stockPayload = await stockResponse.json()
+      const parsed = parseStock(stockPayload)
       setStock(parsed)
       if (parsed?.depositos?.length) {
-        setManualLocation(parsed.depositos[0].nome)
-        const selections: Record<number, { checked: boolean; quantity: number }> = {}
-        parsed.depositos.forEach((deposito, index) => {
-          selections[index] = { checked: false, quantity: Number(deposito.saldo ?? 0) }
-        })
-        setDepositSelections(selections)
+        const preferred =
+          parsed.depositos.find((deposito) => deposito.nome === 'Teixeira de Freitas / BA') ??
+          parsed.depositos[0]
+        setSelectedDeposit(preferred?.nome ?? '')
       }
     } catch (err) {
-      setPrintError(err instanceof Error ? err.message : 'Falha ao buscar estoque.')
+      setError(err instanceof Error ? err.message : 'Falha ao buscar produto.')
     } finally {
+      setLoading(false)
       setStockLoading(false)
     }
   }
 
-  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setCommittedSearch(searchTerm.trim())
-    setOffset(0)
+  const productTitle = selectedProduct ? getTinyProductTitle(selectedProduct) : '-'
+  const productSku = selectedProduct ? getTinyProductSku(selectedProduct) : null
+  const productGtin = selectedProduct ? getTinyProductGtin(selectedProduct) : null
+  const productBrand = selectedProduct?.marca?.nome ? String(selectedProduct.marca.nome) : null
+  const productLocation = selectedProduct?.estoque?.localizacao ?? null
+  const productEntryDate = getPrintDateCode()
+  const productSlug = selectedProduct?.seo?.slug ? String(selectedProduct.seo.slug) : null
+  const resolvedSlug = productSlug ?? parentSlug
+  const productUrl = resolvedSlug ? `https://teixeiramilitar.com.br/products/${resolvedSlug}` : null
+  const productPrice = selectedProduct?.precos?.precoPromocional ?? selectedProduct?.precos?.preco ?? null
+  const displayPrice = includePrice ? priceListPrice ?? null : productPrice
+  const productThumb =
+    Array.isArray(selectedProduct?.anexos) && selectedProduct.anexos.length
+      ? selectedProduct.anexos.find((entry: any) => entry?.url)?.url ?? null
+      : null
+
+  const selectedDepositData = useMemo(() => {
+    if (!stock?.depositos?.length || !selectedDeposit) return null
+    return stock.depositos.find((deposito) => deposito.nome === selectedDeposit) ?? null
+  }, [selectedDeposit, stock?.depositos])
+
+  useEffect(() => {
+    if (!useStockQuantity) return
+    if (selectedDepositData) {
+      setManualQuantity(Number(selectedDepositData.saldo ?? 0))
+    }
+  }, [selectedDepositData, useStockQuantity])
+  const formatPriceBRL = (value: number | string | null) => {
+    if (value == null) return null
+    const numeric = typeof value === 'number' ? value : Number(String(value).replace(',', '.'))
+    if (!Number.isFinite(numeric)) return null
+    return `R$ ${numeric.toFixed(2).replace('.', ',')}`
   }
 
-  const hasSelectedDeposits = useMemo(
-    () => Object.values(depositSelections).some((entry) => entry.checked),
-    [depositSelections],
-  )
+  useEffect(() => {
+    if (!includePrice || !selectedProduct?.id) {
+      setPriceListPrice(null)
+      setPriceListLoading(false)
+      return
+    }
+    let isActive = true
+    setPriceListLoading(true)
+    resolvePriceFromList(selectedProduct)
+      .then((value) => {
+        if (isActive) setPriceListPrice(value)
+      })
+      .catch(() => {
+        if (isActive) setPriceListPrice(null)
+      })
+      .finally(() => {
+        if (isActive) setPriceListLoading(false)
+      })
+    return () => {
+      isActive = false
+    }
+  }, [includePrice, resolvePriceFromList, selectedProduct?.id])
 
-  const handleGenerateLabels = () => {
+  const handleGenerateLabels = async () => {
     if (!selectedProduct) {
       setPrintError('Selecione um produto para imprimir etiquetas.')
       return
     }
 
-    const codeValue = selectedProduct.gtin || selectedProduct.sku || selectedProduct.codigo || ''
+    const skuValue = getTinyProductSku(selectedProduct)
+    const gtinValueRaw = getTinyProductGtin(selectedProduct)
+    const gtinValue =
+      gtinValueRaw && !String(gtinValueRaw).toLowerCase().includes('sem gtin') ? gtinValueRaw : null
+    const codeValue = gtinValue || skuValue || ''
     if (!codeValue) {
       setPrintError('Produto sem SKU/GTIN para gerar etiqueta.')
       return
     }
 
-    const labels: Array<{
-      title: string
-      variation: string
-      location: string
-      code: string
-      codeLabel: string
-    }> = []
-
-    if (hasSelectedDeposits && stock?.depositos?.length) {
-      stock.depositos.forEach((deposito, index) => {
-        const selection = depositSelections[index]
-        if (!selection?.checked) return
-        const qty = Math.max(0, Math.floor(selection.quantity || 0))
-        for (let i = 0; i < qty; i += 1) {
-          labels.push({
-            title: selectedProduct.nome ?? '-',
-            variation: selectedProduct.variacao ?? '-',
-            location: deposito.nome ?? '-',
-            code: codeValue,
-            codeLabel: selectedProduct.gtin ? 'GTIN' : 'SKU',
-          })
+    let rawPrice = priceListPrice
+    if (includePrice && selectedProduct?.id) {
+      try {
+        if (rawPrice == null) {
+          rawPrice = await resolvePriceFromList(selectedProduct)
         }
-      })
-    } else {
-      const qty = Math.max(0, Math.floor(manualQuantity || 0))
-      if (!qty) {
-        setPrintError('Informe uma quantidade válida para imprimir.')
+      } catch (err) {
+        setPrintError(err instanceof Error ? err.message : 'Falha ao buscar preço do produto.')
         return
       }
-      for (let i = 0; i < qty; i += 1) {
-        labels.push({
-          title: selectedProduct.nome ?? '-',
-          variation: selectedProduct.variacao ?? '-',
-          location: manualLocation || '-',
-          code: codeValue,
-          codeLabel: selectedProduct.gtin ? 'GTIN' : 'SKU',
-        })
-      }
+    }
+
+    const priceValue = formatPriceBRL(rawPrice)
+    if (includePrice && !priceValue) {
+      setPrintError('Produto sem preço para inserir na etiqueta.')
+      return
+    }
+
+    const labels: Array<{
+      title: string
+      sku: string | null
+      gtin: string | null
+      brand: string | null
+      location: string | null
+      entryDate: string | null
+      productUrl: string | null
+      code: string
+      codeLabel: string
+      price: string | null
+      showInstallments: boolean
+    }> = []
+
+    const title = getTinyProductTitle(selectedProduct)
+    const brand = selectedProduct?.marca?.nome ? String(selectedProduct.marca.nome) : null
+    const location = selectedProduct?.estoque?.localizacao || null
+    const entryDate = getPrintDateCode()
+    const slug = selectedProduct?.seo?.slug ? String(selectedProduct.seo.slug) : parentSlug
+    const productUrl = slug ? `https://teixeiramilitar.com.br/products/${slug}` : null
+
+    const qty = Math.max(0, Math.floor(manualQuantity || 0))
+    if (!qty) {
+      setPrintError('Informe uma quantidade válida para imprimir.')
+      return
+    }
+    for (let i = 0; i < qty; i += 1) {
+      labels.push({
+        title,
+        sku: skuValue,
+        gtin: gtinValue,
+        brand,
+        location,
+        entryDate,
+        productUrl,
+        code: codeValue,
+        codeLabel: gtinValue ? 'GTIN' : 'SKU',
+        price: includePrice ? priceValue : null,
+        showInstallments: includeInstallments,
+      })
     }
 
     if (!labels.length) {
@@ -265,13 +336,13 @@ export default function InventarioEtiquetasPage() {
 
   return (
     <>
-      {loading ? <LoadingOverlay label="Carregando produtos..." /> : null}
+      {loading ? <LoadingOverlay label="Buscando produto..." /> : null}
       <section className="px-4 pt-6 sm:px-8">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="text-3xl font-semibold">Etiquetas</h1>
             <p className="mt-2 text-sm text-[var(--ink-muted)]">
-              Pesquise por SKU, GTIN ou título e gere etiquetas por depósito.
+              Insira SKU ou GTIN e gere etiquetas com os dados completos do produto.
             </p>
           </div>
         </div>
@@ -286,105 +357,83 @@ export default function InventarioEtiquetasPage() {
             <div className="flex flex-1 flex-wrap items-center gap-2">
               <input
                 className="w-full rounded border border-black/10 bg-white px-3 py-2 text-sm lg:w-[320px]"
-                placeholder="Pesquisar por SKU, GTIN ou título"
+                placeholder="Digite o SKU ou GTIN do produto"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
               />
-              <select
-                className="rounded border border-black/10 bg-white px-3 py-2 text-sm"
-                value={searchBy}
-                onChange={(event) => setSearchBy(event.target.value as typeof searchBy)}
-              >
-                <option value="auto">Busca automática</option>
-                <option value="sku">SKU/Código</option>
-                <option value="gtin">GTIN</option>
-                <option value="titulo">Título</option>
-              </select>
               <button
                 className="rounded border border-blue-700 px-3 py-2 text-sm text-blue-700"
                 type="submit"
               >
-                Pesquisar
+                Buscar
               </button>
             </div>
           </form>
           {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
-
-          <div className="mt-4 overflow-x-auto">
-            <div className="min-w-[820px]">
-              <div className="grid grid-cols-[2fr_1fr_1fr_0.8fr_0.7fr] gap-4 border-b border-black/10 pb-2 text-xs font-semibold text-[var(--ink-muted)]">
-                <span>Produto</span>
-                <span>Código</span>
-                <span>SKU</span>
-                <span>Unidade</span>
-                <span>Ação</span>
-              </div>
-              <div className="mt-2 flex flex-col gap-2">
-                {items.map((item, index) => (
-                  <div
-                    key={`${item.id ?? item.sku ?? `row-${index}`}`}
-                    className="grid grid-cols-[2fr_1fr_1fr_0.8fr_0.7fr] items-center gap-4 border-b border-black/10 px-1 py-3 text-sm"
-                  >
-                    <div className="text-blue-700">{item.nome ?? '-'}</div>
-                    <div>{item.codigo ?? '-'}</div>
-                    <div>{item.sku ?? '-'}</div>
-                    <div>{item.unidade ?? '-'}</div>
-                    <div>
-                      <button
-                        className="rounded border border-blue-700 px-3 py-1 text-xs text-blue-700"
-                        onClick={() => handleSelectProduct(item)}
-                      >
-                        Selecionar
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 flex items-center justify-between gap-2 text-sm text-[var(--ink-muted)]">
-                <span>
-                  {items.length} resultados | Página {currentPage} de {totalPages}
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    className="rounded border border-black/10 px-3 py-1 text-sm text-black disabled:opacity-50"
-                    onClick={() => setOffset(Math.max(0, offset - limit))}
-                    disabled={offset === 0}
-                  >
-                    Anterior
-                  </button>
-                  <button
-                    className="rounded border border-black/10 px-3 py-1 text-sm text-black disabled:opacity-50"
-                    onClick={() => setOffset(offset + limit)}
-                    disabled={offset + limit >= total}
-                  >
-                    Próxima
-                  </button>
-                </div>
-              </div>
+          {!selectedProduct ? (
+            <div className="mt-3 text-sm text-[var(--ink-muted)]">
+              Informe um SKU ou GTIN e pressione Enter para buscar o produto.
             </div>
-          </div>
+          ) : (
+            <div className="mt-3 text-sm text-[var(--ink-muted)]">
+              Produto carregado: <span className="font-semibold text-[var(--ink)]">{productTitle}</span>
+            </div>
+          )}
         </div>
 
         <div className="mt-6 rounded border border-black/10 bg-white p-4">
           <h2 className="text-lg font-semibold">Etiqueta do produto</h2>
           {!selectedProduct ? (
             <div className="mt-2 text-sm text-[var(--ink-muted)]">
-              Selecione um produto acima para visualizar o estoque.
+              Busque um SKU ou GTIN para visualizar os dados da etiqueta.
             </div>
           ) : (
             <>
-              <div className="mt-3 grid gap-3 text-sm sm:grid-cols-[2fr_1fr_1fr]">
-                <div>
-                  <div className="text-[var(--ink-muted)]">Produto</div>
-                  <div className="mt-1 text-base font-semibold">{selectedProduct.nome ?? '-'}</div>
+              <div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-24 w-24 items-center justify-center rounded border border-black/10 bg-white text-xs text-[var(--ink-muted)]">
+                    {productThumb ? (
+                      <img src={productThumb} alt={productTitle} className="h-full w-full object-contain" />
+                    ) : (
+                      'Thumb'
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-[var(--ink-muted)]">Produto</div>
+                    <div className="mt-1 text-base font-semibold">{productTitle}</div>
+                  </div>
                 </div>
                 <div>
                   <div className="text-[var(--ink-muted)]">SKU</div>
-                  <div className="mt-1">{selectedProduct.sku ?? selectedProduct.codigo ?? '-'}</div>
+                  <div className="mt-1">{productSku ?? '-'}</div>
                 </div>
                 <div>
                   <div className="text-[var(--ink-muted)]">GTIN</div>
-                  <div className="mt-1">{selectedProduct.gtin ?? '-'}</div>
+                  <div className="mt-1">{productGtin ?? '-'}</div>
+                </div>
+                <div>
+                  <div className="text-[var(--ink-muted)]">Marca</div>
+                  <div className="mt-1">{productBrand ?? '-'}</div>
+                </div>
+                <div>
+                  <div className="text-[var(--ink-muted)]">Localização</div>
+                  <div className="mt-1">{productLocation ?? manualLocation ?? '-'}</div>
+                </div>
+                <div>
+                  <div className="text-[var(--ink-muted)]">Entrada (lote)</div>
+                  <div className="mt-1">{productEntryDate ?? '-'}</div>
+                </div>
+                <div className="sm:col-span-3">
+                  <div className="text-[var(--ink-muted)]">URL do produto</div>
+                  <div className="mt-1 break-all text-blue-700">{productUrl ?? '-'}</div>
+                </div>
+                <div>
+                  <div className="text-[var(--ink-muted)]">Preço</div>
+                  <div className="mt-1">
+                    {priceListLoading && includePrice
+                      ? 'Carregando...'
+                      : formatPriceBRL(displayPrice) ?? '-'}
+                  </div>
                 </div>
               </div>
 
@@ -392,18 +441,44 @@ export default function InventarioEtiquetasPage() {
                 <div className="mt-4 text-sm text-[var(--ink-muted)]">Carregando estoque...</div>
               ) : stock ? (
                 <>
+                  <div className="mt-4 rounded border border-black/10 bg-[var(--surface)] p-3">
+                    <div className="text-sm font-semibold">Depósito</div>
+                    <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <select
+                        className="rounded border border-black/10 bg-white px-3 py-2 text-sm"
+                        value={selectedDeposit}
+                        onChange={(event) => setSelectedDeposit(event.target.value)}
+                      >
+                        <option value="">Entrada manual (sem depósito)</option>
+                        {stock.depositos.map((deposito, index) => (
+                          <option key={`${deposito.nome}-${index}`} value={deposito.nome}>
+                            {deposito.nome}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="text-xs text-[var(--ink-muted)]">
+                        Selecione apenas quando quiser usar um depósito específico.
+                      </span>
+                    </div>
+                  </div>
                   <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
                     <div>
                       <div className="text-[var(--ink-muted)]">Saldo</div>
-                      <div className="mt-1 text-base font-semibold">{stock.saldo}</div>
+                      <div className="mt-1 text-base font-semibold">
+                        {selectedDepositData ? selectedDepositData.saldo : '-'}
+                      </div>
                     </div>
                     <div>
                       <div className="text-[var(--ink-muted)]">Reservado</div>
-                      <div className="mt-1 text-base font-semibold">{stock.reservado}</div>
+                      <div className="mt-1 text-base font-semibold">
+                        {selectedDepositData ? selectedDepositData.reservado : '-'}
+                      </div>
                     </div>
                     <div>
                       <div className="text-[var(--ink-muted)]">Disponível</div>
-                      <div className="mt-1 text-base font-semibold">{stock.disponivel}</div>
+                      <div className="mt-1 text-base font-semibold">
+                        {selectedDepositData ? selectedDepositData.disponivel : '-'}
+                      </div>
                     </div>
                   </div>
 
@@ -417,74 +492,44 @@ export default function InventarioEtiquetasPage() {
                         value={manualQuantity}
                         onChange={(event) => setManualQuantity(Number(event.target.value))}
                       />
-                      <select
-                        className="rounded border border-black/10 bg-white px-3 py-2 text-sm"
-                        value={manualLocation}
-                        onChange={(event) => setManualLocation(event.target.value)}
-                      >
-                        <option value="">Sem localização</option>
-                        {stock.depositos.map((deposito, index) => (
-                          <option key={`${deposito.nome}-${index}`} value={deposito.nome}>
-                            {deposito.nome}
-                          </option>
-                        ))}
-                      </select>
-                      <span className="text-xs text-[var(--ink-muted)]">
-                        Use quantidade manual quando não selecionar depósitos.
-                      </span>
+                      <label className="flex items-center gap-2 text-xs text-[var(--ink-muted)]">
+                        <input
+                          type="checkbox"
+                          checked={useStockQuantity}
+                          onChange={(event) => {
+                            const checked = event.target.checked
+                            setUseStockQuantity(checked)
+                            if (checked && selectedDepositData) {
+                              setManualQuantity(Number(selectedDepositData.saldo ?? 0))
+                            }
+                          }}
+                          disabled={!selectedDepositData}
+                        />
+                        Usar saldo do depósito selecionado
+                      </label>
                     </div>
                   </div>
 
-                  <div className="mt-6">
-                    <div className="text-sm font-semibold">Imprimir por depósito</div>
-                    <div className="mt-3 grid grid-cols-[0.3fr_1.4fr_0.8fr_0.8fr_0.8fr] gap-4 border-b border-black/10 pb-2 text-xs font-semibold text-[var(--ink-muted)]">
-                      <span>Usar</span>
-                      <span>Depósito</span>
-                      <span>Saldo</span>
-                      <span>Reservado</span>
-                      <span>Etiquetas</span>
-                    </div>
-                    <div className="mt-2 flex flex-col gap-2">
-                      {stock.depositos.map((deposito, index) => (
-                        <div
-                          key={`${deposito.nome}-${index}`}
-                          className="grid grid-cols-[0.3fr_1.4fr_0.8fr_0.8fr_0.8fr] items-center gap-4 border-b border-black/10 py-2 text-sm"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={depositSelections[index]?.checked ?? false}
-                            onChange={(event) =>
-                              setDepositSelections((prev) => ({
-                                ...prev,
-                                [index]: {
-                                  checked: event.target.checked,
-                                  quantity: prev[index]?.quantity ?? Number(deposito.saldo ?? 0),
-                                },
-                              }))
-                            }
-                          />
-                          <div>{deposito.nome}</div>
-                          <div>{deposito.saldo}</div>
-                          <div>{deposito.reservado}</div>
-                          <input
-                            className="w-full rounded border border-black/10 bg-white px-2 py-1 text-sm"
-                            type="number"
-                            min={0}
-                            value={depositSelections[index]?.quantity ?? Number(deposito.saldo ?? 0)}
-                            onChange={(event) =>
-                              setDepositSelections((prev) => ({
-                                ...prev,
-                                [index]: {
-                                  checked: prev[index]?.checked ?? false,
-                                  quantity: Number(event.target.value),
-                                },
-                              }))
-                            }
-                          />
-                        </div>
-                      ))}
-                    </div>
+                  <div className="mt-4 flex items-center gap-2 text-sm">
+                    <input
+                      id="include-price"
+                      type="checkbox"
+                      checked={includePrice}
+                      onChange={(event) => setIncludePrice(event.target.checked)}
+                    />
+                    <label htmlFor="include-price">Inserir preço na etiqueta</label>
                   </div>
+                  <div className="mt-2 flex items-center gap-2 text-sm">
+                    <input
+                      id="include-installments"
+                      type="checkbox"
+                      checked={includeInstallments}
+                      onChange={(event) => setIncludeInstallments(event.target.checked)}
+                      disabled={!includePrice}
+                    />
+                    <label htmlFor="include-installments">Mostrar parcelamento</label>
+                  </div>
+
                 </>
               ) : (
                 <div className="mt-4 text-sm text-[var(--ink-muted)]">Sem estoque disponível.</div>
@@ -497,7 +542,7 @@ export default function InventarioEtiquetasPage() {
           <div className="mt-5">
             <button
               className="rounded border border-blue-700 px-4 py-2 text-sm text-blue-700"
-              onClick={handleGenerateLabels}
+              onClick={() => void handleGenerateLabels()}
               disabled={!selectedProduct}
             >
               Imprimir etiquetas
