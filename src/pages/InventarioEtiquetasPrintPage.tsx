@@ -116,6 +116,10 @@ export default function InventarioEtiquetasPrintPage() {
           margin: 0;
           color: #000;
           font-family: "Arial", sans-serif;
+          background: #fff;
+        }
+        .sheet {
+          background: #fff;
         }
         .print-toolbar {
           padding: 16px;
