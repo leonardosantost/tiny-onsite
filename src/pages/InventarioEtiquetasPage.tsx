@@ -417,7 +417,7 @@ export default function InventarioEtiquetasPage() {
                 </div>
                 <div>
                   <div className="text-[var(--ink-muted)]">Localização</div>
-                  <div className="mt-1">{productLocation ?? manualLocation ?? '-'}</div>
+                  <div className="mt-1">{productLocation ?? '-'}</div>
                 </div>
                 <div>
                   <div className="text-[var(--ink-muted)]">Entrada (lote)</div>
