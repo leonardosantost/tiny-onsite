@@ -105,12 +105,12 @@ export default function InventarioEtiquetasPrintPage() {
       <style>
         {`
         @page {
-          size: 10cm 7.5cm;
+          size: 10cm 10cm;
           margin: 0;
         }
         html, body {
           width: 10cm;
-          height: 7.5cm;
+          height: 10cm;
         }
         body {
           margin: 0;
@@ -128,27 +128,37 @@ export default function InventarioEtiquetasPrintPage() {
         }
         .sheet {
           width: 10cm;
-          height: 7.5cm;
+          height: 10cm;
           margin: 0 auto;
           display: grid;
           grid-template-columns: repeat(2, 5cm);
-          grid-auto-rows: 7.5cm;
+          grid-auto-rows: 10cm;
         }
         .label {
           box-sizing: border-box;
-          padding: 0.5cm 0.5cm 0.25cm;
+          padding: 0;
           display: flex;
           flex-direction: column;
           align-items: stretch;
           text-align: left;
-          height: 7.5cm;
+          height: 10cm;
+          position: relative;
+        }
+        .content-stack {
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          padding: 0.5cm 0.5cm 0.25cm;
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
         }
         .top-block {
           display: flex;
           flex-direction: column;
-          justify-content: flex-end;
+          justify-content: flex-start;
           gap: 0.2cm;
-          margin-top: auto;
           padding-bottom: 0.3cm;
         }
         .qr-top {
@@ -350,50 +360,52 @@ export default function InventarioEtiquetasPrintPage() {
             : null
           return (
             <div key={`${label.code}-${index}`} className="label">
-              <div className="top-block">
-                <div className="qr-top">
-                  {qrUrl ? <img src={qrUrl} alt="QR code" className="qr-image" /> : null}
-                  <img src="/LOGO ICON QD.png" alt="Logo" className="qr-logo" />
-                </div>
-                <div className="header">
-                  <div className="header-main">
-                    <div className="title">{parsedTitle.baseTitle}</div>
-                    <div className="variation-grid">
-                      <div>
-                        <div className="variation-label">Tamanho</div>
-                        <div className="variation-size">{sizeText}</div>
+              <div className="content-stack">
+                <div className="top-block">
+                  <div className="qr-top">
+                    {qrUrl ? <img src={qrUrl} alt="QR code" className="qr-image" /> : null}
+                    <img src="/LOGO ICON QD.png" alt="Logo" className="qr-logo" />
+                  </div>
+                  <div className="header">
+                    <div className="header-main">
+                      <div className="title">{parsedTitle.baseTitle}</div>
+                      <div className="variation-grid">
+                        <div>
+                          <div className="variation-label">Tamanho</div>
+                          <div className="variation-size">{sizeText}</div>
+                        </div>
+                        <div>
+                          <div className="variation-label">Variações</div>
+                          <div className="variation-value">{variationText}</div>
+                        </div>
                       </div>
+                      {label.gtin ? <div className="sku-line">SKU {label.sku ?? '-'}</div> : null}
                       <div>
-                        <div className="variation-label">Variações</div>
-                        <div className="variation-value">{variationText}</div>
+                        <div className="barcode">
+                          <Barcode value={label.code} height={40} minBarWidth={2} />
+                        </div>
+                        <div className="barcode-text">{label.code}</div>
                       </div>
                     </div>
-                    {label.gtin ? <div className="sku-line">SKU {label.sku ?? '-'}</div> : null}
-                    <div>
-                      <div className="barcode">
-                        <Barcode value={label.code} height={40} minBarWidth={2} />
-                      </div>
-                      <div className="barcode-text">{label.code}</div>
+                    <div className="meta-line">
+                      {`${label.brand ?? '-'} ${label.location ?? '-'} ${label.entryDate ?? '-'}`}
                     </div>
                   </div>
-                  <div className="meta-line">
-                    {`${label.brand ?? '-'} ${label.location ?? '-'} ${label.entryDate ?? '-'}`}
-                  </div>
                 </div>
-              </div>
 
-              <div className="bottom">
-                {label.price ? (
-                  <>
-                    <div className="price">
-                      <span className="price-currency">R$</span>
-                      <span>{label.price.replace(/^R\$\s?/, '')}</span>
-                    </div>
-                    {installmentText ? (
-                      <div className="installments">até 6x sem juros de {installmentText}</div>
-                    ) : null}
-                  </>
-                ) : null}
+                <div className="bottom">
+                  {label.price ? (
+                    <>
+                      <div className="price">
+                        <span className="price-currency">R$</span>
+                        <span>{label.price.replace(/^R\$\s?/, '')}</span>
+                      </div>
+                      {installmentText ? (
+                        <div className="installments">até 6x sem juros de {installmentText}</div>
+                      ) : null}
+                    </>
+                  ) : null}
+                </div>
               </div>
             </div>
           )
