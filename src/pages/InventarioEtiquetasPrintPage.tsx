@@ -163,8 +163,8 @@ export default function InventarioEtiquetasPrintPage() {
           display: block;
         }
         .qr-logo {
-          width: 0.9cm;
-          height: 0.9cm;
+          width: 1cm;
+          height: 1cm;
           object-fit: contain;
           flex-shrink: 0;
           display: block;
@@ -200,11 +200,11 @@ export default function InventarioEtiquetasPrintPage() {
           color: #333;
           font-weight: 700;
           position: absolute;
-          top: 50%;
+          top: 15%;
           right: 0;
           white-space: nowrap;
-          transform: translateY(-50%) rotate(90deg);
-          transform-origin: center right;
+          transform: rotate(90deg);
+          transform-origin: top right;
         }
         .variation-grid {
           display: grid;
@@ -301,6 +301,7 @@ export default function InventarioEtiquetasPrintPage() {
           flex-direction: column;
           align-items: center;
           justify-content: flex-start;
+          padding-top: 0.5cm;
         }
         @media print {
           .print-toolbar {
