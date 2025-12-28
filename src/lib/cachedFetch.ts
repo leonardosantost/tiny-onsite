@@ -92,7 +92,9 @@ export async function cachedFetch(input: RequestInfo | URL, init?: RequestInit) 
       headers,
       body,
     }
-    responseCache.set(key, entry)
+    if (response.ok) {
+      responseCache.set(key, entry)
+    }
     return entryToResponse(entry)
   }
 
@@ -115,7 +117,9 @@ export async function cachedFetch(input: RequestInfo | URL, init?: RequestInit) 
       headers,
       body,
     }
-    responseCache.set(key, entry)
+    if (response.ok) {
+      responseCache.set(key, entry)
+    }
     inFlight.delete(key)
     return entry
   })().catch((error) => {

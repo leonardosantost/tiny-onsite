@@ -152,21 +152,29 @@ export default function InventarioEtiquetasPrintPage() {
           justify-content: flex-start;
           align-items: center;
           gap: 0.25cm;
+          position: relative;
+          z-index: 2;
         }
-        .qr-top img {
+        .qr-image {
           width: 1.2cm;
           height: 1.2cm;
+          object-fit: contain;
+          flex-shrink: 0;
+          display: block;
         }
         .qr-logo {
           width: 0.9cm;
           height: 0.9cm;
           object-fit: contain;
+          flex-shrink: 0;
+          display: block;
         }
         .header {
           display: flex;
-          flex-direction: row;
+          flex-direction: column;
           gap: 0.16cm;
           min-height: 0;
+          position: relative;
         }
         .header-main {
           flex: 1;
@@ -191,12 +199,12 @@ export default function InventarioEtiquetasPrintPage() {
           letter-spacing: 0.04em;
           color: #333;
           font-weight: 700;
-          display: flex;
-          flex-direction: column;
-          align-items: flex-end;
-          gap: 0.12cm;
-          text-align: right;
-          min-width: 1.2cm;
+          position: absolute;
+          top: 50%;
+          right: 0;
+          white-space: nowrap;
+          transform: translateY(-50%) rotate(90deg);
+          transform-origin: center right;
         }
         .variation-grid {
           display: grid;
@@ -339,7 +347,7 @@ export default function InventarioEtiquetasPrintPage() {
             <div key={`${label.code}-${index}`} className="label">
               <div className="top-block">
                 <div className="qr-top">
-                  {qrUrl ? <img src={qrUrl} alt="QR code" /> : null}
+                  {qrUrl ? <img src={qrUrl} alt="QR code" className="qr-image" /> : null}
                   <img src="/LOGO ICON QD.png" alt="Logo" className="qr-logo" />
                 </div>
                 <div className="header">
@@ -364,9 +372,7 @@ export default function InventarioEtiquetasPrintPage() {
                     </div>
                   </div>
                   <div className="meta-line">
-                    <span>{label.brand ?? '-'}</span>
-                    <span>{label.location ?? '-'}</span>
-                    <span>{label.entryDate ?? '-'}</span>
+                    {`${label.brand ?? '-'} ${label.location ?? '-'} ${label.entryDate ?? '-'}`}
                   </div>
                 </div>
               </div>
